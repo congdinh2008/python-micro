@@ -1,0 +1,10 @@
+# Product Manager CLI - No external dependencies required
+# This application uses only Python standard library
+# Python version: 3.7+
+
+# Development dependencies (optional)
+# Uncomment if you want to use these tools for development:
+
+# flake8>=7.0.0    # For PEP8 checking
+# black>=24.0.0    # For code formatting
+# mypy>=1.8.0      # For type checking
