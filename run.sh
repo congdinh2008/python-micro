@@ -1,5 +1,6 @@
-#!/bin/bash
+#!/bin/bash -e
 # Script để chạy Product Catalog Service
+# Exit on any error
 
 echo "🚀 Starting Product Catalog Service..."
 echo ""
@@ -15,7 +16,10 @@ fi
 # Check if database needs migration
 if [ ! -f product_catalog.db ]; then
     echo "📊 Database chưa được khởi tạo. Đang chạy migrations..."
-    alembic upgrade head
+    if ! alembic upgrade head; then
+        echo "❌ Migration failed! Please check your database configuration."
+        exit 1
+    fi
     echo "✅ Đã tạo database."
     echo ""
 fi
