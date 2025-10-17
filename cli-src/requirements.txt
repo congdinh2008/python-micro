@@ -1,0 +1,10 @@
+# Product Manager CLI Application
+# Python CLI application - No external dependencies required
+# Uses Python standard library only
+
+# Development dependencies (optional)
+# pytest>=7.4.0  # For unit testing
+# pytest-cov>=4.1.0  # For coverage reports
+# mypy>=1.5.0  # For type checking
+# pylint>=2.17.0  # For code linting
+# black>=23.7.0  # For code formatting
