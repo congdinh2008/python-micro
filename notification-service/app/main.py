@@ -11,6 +11,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.config import settings
 from app.utils.rabbitmq import rabbitmq_consumer
+from app.utils.tracing import setup_tracing
 
 # Configure logging
 logging.basicConfig(
@@ -52,6 +53,9 @@ app.add_middleware(
 
 # Setup Prometheus metrics
 Instrumentator().instrument(app).expose(app)
+
+# Setup OpenTelemetry tracing
+setup_tracing(app, service_name=settings.APP_NAME, service_version=settings.APP_VERSION)
 
 
 @app.get(
