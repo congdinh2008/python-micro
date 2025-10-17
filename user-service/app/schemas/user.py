@@ -56,4 +56,5 @@ class TokenValidationResponse(BaseModel):
     """Schema for token validation response"""
     valid: bool
     username: Optional[str] = None
+    user_id: Optional[int] = None
     message: Optional[str] = None

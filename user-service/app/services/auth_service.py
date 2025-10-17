@@ -162,3 +162,21 @@ class AuthService:
             return None
             
         return username
+
+    def validate_token_with_user(self, token: str) -> Optional[User]:
+        """
+        Validate JWT token and return User object
+        
+        Args:
+            token: JWT token to validate
+            
+        Returns:
+            User object if token is valid, None otherwise
+        """
+        username = decode_access_token(token)
+        if username is None:
+            return None
+            
+        # Verify user still exists and is active
+        user = self.user_repository.get_active_user_by_username(username)
+        return user

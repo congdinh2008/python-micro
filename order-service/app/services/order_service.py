@@ -61,7 +61,7 @@ class OrderService:
             )
         
         # Calculate prices
-        unit_price = product["price"]
+        unit_price = float(product["price"])
         total_price = unit_price * order_data.quantity
         
         # Create order in database

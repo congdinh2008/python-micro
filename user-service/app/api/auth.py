@@ -111,25 +111,28 @@ def validate_token(
     **Response:**
     - **valid**: True if token is valid, False otherwise
     - **username**: Username if token is valid, None otherwise
+    - **user_id**: User ID if token is valid, None otherwise
     - **message**: Error message if token is invalid
     
     **Use Case:**
     - Product Service calls this endpoint to validate tokens
-    - Returns username if token is valid for further authorization
+    - Returns username and user_id if token is valid for further authorization
     """
     auth_service = AuthService(db)
 
-    username = auth_service.validate_token(request.token)
+    user = auth_service.validate_token_with_user(request.token)
     
-    if username:
+    if user:
         return TokenValidationResponse(
             valid=True,
-            username=username,
+            username=user.username,
+            user_id=user.id,
             message="Token is valid"
         )
     else:
         return TokenValidationResponse(
             valid=False,
             username=None,
+            user_id=None,
             message="Token is invalid or expired"
         )
