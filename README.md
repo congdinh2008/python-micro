@@ -1,956 +1,432 @@
-# 🚀 Python Microservices - Complete E-commerce System
+# 🚀 Python Microservices E-Commerce Platform
 
-Kiến trúc Microservices hoàn chỉnh với 4 services độc lập: **User Service** (Authentication), **Product Service** (Product Management với Redis Cache), **Order Service** (Order Management với RabbitMQ), và **Notification Service** (Async Notifications), xây dựng bằng FastAPI, SQLAlchemy 2.0, PostgreSQL, Redis, RabbitMQ, và áp dụng Clean Architecture.
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com/)
+[![Docker](https://img.shields.io/badge/Docker-24+-blue.svg)](https://www.docker.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)](https://www.postgresql.org/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## 🎯 Mục tiêu
+A production-ready microservices architecture for e-commerce applications, built with **FastAPI**, **PostgreSQL**, **Redis**, **RabbitMQ**, and comprehensive observability stack.
 
-- Xây dựng kiến trúc Microservices với services độc lập
-- Tách biệt Authentication (User Service), Product Management (Product Service), Order Management (Order Service), và Notifications (Notification Service)
-- Giao tiếp đồng bộ qua REST API và bất đồng bộ qua RabbitMQ
-- Tối ưu hiệu năng với Redis Cache
-- Áp dụng Repository Pattern và Clean Architecture
-- Sử dụng SQLAlchemy 2.0 với PostgreSQL
-- Quản lý schema bằng Alembic migrations độc lập cho mỗi service
-- Message-driven architecture với RabbitMQ
+---
 
-## 🏗️ Kiến trúc Microservices
+## 📖 Table of Contents
+
+- [Overview](#-overview)
+- [Architecture](#-architecture)
+- [Features](#-features)
+- [Quick Start](#-quick-start)
+- [Services](#-services)
+- [Technology Stack](#-technology-stack)
+- [Documentation](#-documentation)
+- [Development](#-development)
+- [Deployment](#-deployment)
+- [Monitoring](#-monitoring)
+
+---
+
+## 🎯 Overview
+
+This project demonstrates a **complete microservices architecture** with 4 independent services, implementing industry best practices:
+
+- ✅ **Clean Architecture** with Repository Pattern
+- ✅ **Event-Driven Architecture** with RabbitMQ
+- ✅ **Distributed Tracing** with OpenTelemetry & Jaeger
+- ✅ **Centralized Logging** with Loki & Promtail
+- ✅ **Metrics & Monitoring** with Prometheus & Grafana
+- ✅ **API Gateway Pattern** with JWT authentication
+- ✅ **Cache Strategy** with Redis
+- ✅ **Database per Service** pattern
+- ✅ **Docker Containerization** & Orchestration
+
+---
+
+## 🏗️ Architecture
+
+### System Overview
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                         Client                                    │
-└────┬─────────────────┬─────────────────┬─────────────────────────┘
-     │                 │                 │
-     ▼                 ▼                 ▼
-┌──────────┐    ┌──────────┐     ┌──────────┐
-│  User    │    │ Product  │     │  Order   │
-│ Service  │◄───│ Service  │◄────│ Service  │
-│ (8001)   │    │ (8002)   │     │ (8003)   │
-│          │    │          │     │          │
-│ Auth &   │    │ Products │     │ Orders & │
-│ Validate │    │ + Cache  │     │ Events   │
-└────┬─────┘    └────┬─────┘     └────┬─────┘
-     │               │                 │
-     │         ┌─────▼─────┐           │
-     │         │   Redis   │           │
-     │         │   Cache   │           │
-     │         └───────────┘           │
-     │                                 │
-     ▼                                 ▼
-┌─────────┐                     ┌──────────────┐
-│ User DB │                     │   RabbitMQ   │
-│(Postgres│                     │   Exchange   │
-└─────────┘                     └──────┬───────┘
-                                       │
-     ┌─────────────────┐               │
-     │   Product DB    │               ▼
-     │  (Postgres)     │      ┌────────────────┐
-     └─────────────────┘      │ Notification   │
-                              │   Service      │
-     ┌─────────────────┐      │   (8004)       │
-     │    Order DB     │      │                │
-     │  (Postgres)     │      │ Email/SMS/Push │
-     └─────────────────┘      └────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                         Client Layer                         │
+└──────────────┬─────────────────┬─────────────────┬──────────┘
+               │                 │                 │
+               ▼                 ▼                 ▼
+         ┌──────────┐      ┌──────────┐     ┌──────────┐
+         │  User    │◄─────│ Product  │◄────│  Order   │
+         │ Service  │      │ Service  │     │ Service  │
+         │  :8001   │      │  :8002   │     │  :8003   │
+         └────┬─────┘      └────┬─────┘     └────┬─────┘
+              │                 │                 │
+              │           ┌─────▼─────┐           │
+              │           │   Redis   │           │
+              │           └───────────┘           │
+              ▼                                   ▼
+         ┌─────────┐                       ┌──────────────┐
+         │User DB  │                       │   RabbitMQ   │
+         └─────────┘                       └──────┬───────┘
+                                                  │
+         ┌─────────┐                              ▼
+         │Product  │                    ┌────────────────┐
+         │   DB    │                    │ Notification   │
+         └─────────┘                    │   Service      │
+                                        │    :8004       │
+         ┌─────────┐                    └────────────────┘
+         │Order DB │
+         └─────────┘                    ┌────────────────┐
+                                        │ Observability  │
+         ┌──────────────────────────────┤                │
+         │ Prometheus │ Grafana │ Loki  │ • Metrics      │
+         │ Jaeger │ Promtail           │ • Logs         │
+         └────────────────────────────────┤ • Traces       │
+                                        └────────────────┘
 ```
 
-## ✨ Tính năng
+### Communication Flow
+
+**1. Authentication:**
+```
+Client → User Service → JWT Token → Client
+```
+
+**2. Product Flow (with Cache):**
+```
+Client → Product Service → Redis Cache → PostgreSQL
+                         ↓
+                 User Service (Token Validation)
+```
+
+**3. Order Flow (Event-Driven):**
+```
+Client → Order Service → PostgreSQL
+                       ↓
+               Product Service (Validation)
+                       ↓
+               User Service (Auth)
+                       ↓
+               RabbitMQ (order.created)
+                       ↓
+               Notification Service
+```
+
+---
+
+## ✨ Features
 
 ### 🔐 User Service (Port 8001)
-- ✅ **Đăng ký tài khoản**: `POST /register` - Tạo user mới với username và password
-- ✅ **Đăng nhập**: `POST /login` - Lấy JWT token để authentication
-- ✅ **Xác thực token**: `POST /validate-token` - Validate JWT token (cho Product Service)
-- ✅ **Health Check**: `GET /health` - Kiểm tra trạng thái service
+- User registration and authentication
+- JWT token generation and validation
+- Password hashing with bcrypt
+- Token validation endpoint for other services
 
 ### 📦 Product Service (Port 8002)
-- ✅ **Tạo sản phẩm**: `POST /products` - Tạo sản phẩm mới (yêu cầu JWT)
-- ✅ **Lấy danh sách**: `GET /products` - Lấy tất cả sản phẩm với pagination (public)
-- ✅ **Lấy chi tiết**: `GET /products/{id}` - Chi tiết một sản phẩm với Redis cache (public)
-- ✅ **Cập nhật**: `PUT /products/{id}` - Cập nhật sản phẩm và invalidate cache (yêu cầu JWT)
-- ✅ **Xóa**: `DELETE /products/{id}` - Xóa sản phẩm và invalidate cache (yêu cầu JWT)
-- ✅ **Health Check**: `GET /health` - Kiểm tra trạng thái service và Redis
+- Complete product CRUD operations
+- Redis caching for performance
+- Cache invalidation strategy
+- JWT authentication
 
 ### 🛒 Order Service (Port 8003)
-- ✅ **Tạo đơn hàng**: `POST /orders` - Tạo đơn hàng và publish event (yêu cầu JWT)
-- ✅ **Lấy danh sách**: `GET /orders` - Lấy đơn hàng của user (yêu cầu JWT)
-- ✅ **Lấy chi tiết**: `GET /orders/{id}` - Chi tiết một đơn hàng (yêu cầu JWT)
-- ✅ **Cập nhật**: `PUT /orders/{id}` - Cập nhật trạng thái đơn hàng (yêu cầu JWT)
-- ✅ **Xóa**: `DELETE /orders/{id}` - Xóa đơn hàng (yêu cầu JWT)
-- ✅ **Health Check**: `GET /health` - Kiểm tra trạng thái service và RabbitMQ
+- Order creation and management
+- Product validation
+- User authentication
+- Event publishing to RabbitMQ
 
 ### 📧 Notification Service (Port 8004)
-- ✅ **RabbitMQ Consumer**: Lắng nghe order.created events
-- ✅ **Send Notifications**: Gửi email/SMS/push notifications
-- ✅ **Health Check**: `GET /health` - Kiểm tra trạng thái service và RabbitMQ
+- Async message processing
+- Email/SMS/Push notifications
+- Event-driven architecture
 
-## 📁 Cấu trúc Project
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Docker Desktop (24.0+)
+- Docker Compose (2.0+)
+- Git
+
+### Installation
+
+```bash
+# 1. Clone repository
+git clone https://github.com/congdinh2008/python-micro.git
+cd python-micro
+
+# 2. Start all services
+docker compose up -d
+
+# 3. Wait for health checks (30-60 seconds)
+docker compose ps
+
+# 4. Verify services
+curl http://localhost:8001/health  # User Service
+curl http://localhost:8002/health  # Product Service
+curl http://localhost:8003/health  # Order Service
+curl http://localhost:8004/health  # Notification Service
+```
+
+### First API Calls
+
+```bash
+# 1. Register user
+curl -X POST http://localhost:8001/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"demo","email":"demo@example.com","password":"Demo@123"}'
+
+# 2. Login (get JWT token)
+curl -X POST http://localhost:8001/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"demo","password":"Demo@123"}'
+
+# 3. Create product (use token from step 2)
+curl -X POST http://localhost:8002/products \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Laptop","description":"High-end laptop","price":1299.99,"stock":10}'
+
+# 4. Create order
+curl -X POST http://localhost:8003/orders \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"product_id":1,"quantity":1}'
+```
+
+---
+
+## 🔧 Services
+
+### Microservices
+
+| Service | Port | Health Check | API Docs |
+|---------|------|--------------|----------|
+| User Service | 8001 | http://localhost:8001/health | http://localhost:8001/docs |
+| Product Service | 8002 | http://localhost:8002/health | http://localhost:8002/docs |
+| Order Service | 8003 | http://localhost:8003/health | http://localhost:8003/docs |
+| Notification Service | 8004 | http://localhost:8004/health | http://localhost:8004/docs |
+
+### Infrastructure
+
+| Service | Port | Access |
+|---------|------|--------|
+| PostgreSQL (User) | 5433 | localhost:5433 |
+| PostgreSQL (Product) | 5434 | localhost:5434 |
+| PostgreSQL (Order) | 5435 | localhost:5435 |
+| Redis Cache | 6379 | localhost:6379 |
+| RabbitMQ | 15672 | http://localhost:15672 (guest/guest) |
+| Prometheus | 9090 | http://localhost:9090 |
+| Grafana | 3000 | http://localhost:3000 (admin/admin) |
+| Jaeger | 16686 | http://localhost:16686 |
+| Loki | 3100 | http://localhost:3100 |
+
+---
+
+## 💻 Technology Stack
+
+### Backend Framework
+- **FastAPI** - Modern Python web framework
+- **SQLAlchemy 2.0** - ORM for database operations
+- **Alembic** - Database migration tool
+- **Pydantic** - Data validation
+
+### Databases & Cache
+- **PostgreSQL 15** - Primary database (3 instances)
+- **Redis 7** - Caching layer
+
+### Messaging
+- **RabbitMQ 3** - Message queue
+
+### Observability
+- **Prometheus** - Metrics collection
+- **Grafana** - Visualization
+- **Loki** - Log aggregation
+- **Promtail** - Log collector
+- **Jaeger** - Distributed tracing
+- **OpenTelemetry** - Observability framework
+
+### DevOps
+- **Docker** - Containerization
+- **Docker Compose** - Orchestration
+
+---
+
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [QUICKSTART.md](./QUICKSTART.md) | Step-by-step guide |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | System architecture details |
+| [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) | Production deployment |
+| [DEVOPS_README.md](./DEVOPS_README.md) | Observability setup |
+| [TESTING.md](./TESTING.md) | Testing guide |
+| [CORS_CONFIGURATION.md](./CORS_CONFIGURATION.md) | CORS setup |
+| [CHANGELOG.md](./CHANGELOG.md) | Version history |
+
+---
+
+## 🛠️ Development
+
+### Project Structure
 
 ```
 python-micro/
-├── user-service/                 # User Service (Authentication)
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py              # FastAPI application
-│   │   ├── api/
-│   │   │   ├── __init__.py
-│   │   │   └── auth.py          # Auth endpoints
-│   │   ├── config/
-│   │   │   ├── __init__.py
-│   │   │   └── settings.py      # Configuration
-│   │   ├── database/
-│   │   │   ├── __init__.py
-│   │   │   └── database.py      # Database setup
-│   │   ├── models/
-│   │   │   ├── __init__.py
-│   │   │   └── user.py          # User model
-│   │   ├── repositories/
-│   │   │   ├── __init__.py
-│   │   │   ├── base.py          # Base repository
-│   │   │   └── user_repository.py
-│   │   ├── schemas/
-│   │   │   ├── __init__.py
-│   │   │   └── user.py          # User schemas
-│   │   ├── services/
-│   │   │   ├── __init__.py
-│   │   │   └── auth_service.py  # Auth business logic
-│   │   └── utils/
-│   │       ├── __init__.py
-│   │       └── security.py      # JWT & password hashing
-│   ├── alembic/                 # Database migrations
-│   ├── alembic.ini
-│   ├── requirements.txt
-│   ├── .env.example
-│   ├── Dockerfile
-│   └── README.md
-│
-├── product-service/             # Product Service (Product Management)
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py              # FastAPI application
-│   │   ├── api/
-│   │   │   ├── __init__.py
-│   │   │   ├── deps.py          # Auth dependencies
-│   │   │   └── products.py      # Product endpoints
-│   │   ├── config/
-│   │   │   ├── __init__.py
-│   │   │   └── settings.py      # Configuration
-│   │   ├── database/
-│   │   │   ├── __init__.py
-│   │   │   └── database.py      # Database setup
-│   │   ├── models/
-│   │   │   ├── __init__.py
-│   │   │   └── product.py       # Product model
-│   │   ├── repositories/
-│   │   │   ├── __init__.py
-│   │   │   ├── base.py          # Base repository
-│   │   │   └── product_repository.py
-│   │   ├── schemas/
-│   │   │   ├── __init__.py
-│   │   │   └── product.py       # Product schemas
-│   │   ├── services/
-│   │   │   ├── __init__.py
-│   │   │   └── product_service.py
-│   │   └── utils/
-│   │       ├── __init__.py
-│   │       └── auth_client.py   # User Service client
-│   ├── alembic/                 # Database migrations
-│   ├── alembic.ini
-│   ├── requirements.txt
-│   ├── .env.example
-│   ├── Dockerfile
-│   └── README.md
-│
-├── docker-compose.yml           # Docker Compose setup
-├── start-user-service.sh        # Script to start User Service (Linux/Mac)
-├── start-product-service.sh     # Script to start Product Service (Linux/Mac)
-├── start-user-service.bat       # Script to start User Service (Windows)
-├── start-product-service.bat    # Script to start Product Service (Windows)
-└── README.md                    # This file
+├── user-service/           # Authentication service
+├── product-service/        # Product catalog
+├── order-service/          # Order processing
+├── notification-service/   # Async notifications
+├── observability/          # Monitoring configs
+├── docker-compose.yml      # Orchestration
+└── README.md              # This file
 ```
 
-## 🏗️ Kiến trúc và Nguyên tắc
-
-### Microservices Architecture
-
-Hệ thống được chia thành 2 microservices độc lập:
-
-1. **User Service**: Quản lý authentication và user management
-   - Database riêng biệt (user_service_db)
-   - JWT token generation và validation
-   - Port: 8001
-
-2. **Product Service**: Quản lý products
-   - Database riêng biệt (product_service_db)
-   - Gọi User Service để validate JWT tokens
-   - Port: 8002
-
-### Clean Architecture với Repository Pattern
-
-Mỗi service áp dụng cùng kiến trúc:
-
-```
-API Layer (FastAPI Routes)
-    ↓
-Service Layer (Business Logic)
-    ↓
-Repository Layer (Data Access)
-    ↓
-Models Layer (SQLAlchemy ORM)
-    ↓
-Database (PostgreSQL)
-```
-
-### Các nguyên tắc áp dụng:
-
-#### 1. Repository Pattern
-- **BaseRepository**: Generic repository với CRUD operations cơ bản
-- **Specific Repositories**: UserRepository, ProductRepository kế thừa BaseRepository
-- Tách biệt data access logic khỏi business logic
-
-#### 2. Dependency Injection
-- FastAPI Depends() để inject dependencies
-- Database session, authentication được inject vào endpoints
-
-#### 3. Security Best Practices
-- **Password Hashing**: Bcrypt để hash passwords (User Service)
-- **JWT Authentication**: Token-based authentication
-- **Separate Concerns**: Product Service KHÔNG decode JWT, chỉ forward đến User Service
-- **Environment Variables**: Sensitive data trong .env file
-
-#### 4. Inter-Service Communication
-- **REST API**: Product Service gọi User Service qua HTTP
-- **No Shared Database**: Mỗi service có database riêng
-- **Loose Coupling**: Services không phụ thuộc lẫn nhau về code
-
-#### 5. Validation với Pydantic
-- **Request Validation**: Tự động validate input data
-- **Response Models**: Type-safe response schemas
-- **Settings Management**: Type-safe environment configuration
-
-## 🚀 Hướng dẫn Cài đặt và Chạy
-
-### Yêu cầu Hệ thống
-
-- Python 3.9 trở lên
-- PostgreSQL 12+ (hoặc SQLite cho development)
-- Docker & Docker Compose (optional, cho deployment dễ dàng)
-- pip hoặc pipenv
-
-### Phương án 1: Chạy với Docker Compose (Khuyến nghị)
-
-Đây là cách dễ nhất để chạy cả 2 services cùng databases:
+### Environment Setup
 
 ```bash
-# Clone repository
-git clone https://github.com/congdinh2008/python-micro.git
-cd python-micro
+# Development (default "*" CORS)
+cp .env.development.example .env
 
-# Start all services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop all services
-docker-compose down
+# Production (specific origins)
+cp .env.production.example .env
 ```
 
-Services sẽ chạy tại:
-- **User Service**: http://localhost:8001
-- **Product Service**: http://localhost:8002
-- **Order Service**: http://localhost:8003
-- **Notification Service**: http://localhost:8004
-- **RabbitMQ Management UI**: http://localhost:15672 (guest/guest)
-- **Redis**: localhost:6379
-- **User Service DB**: localhost:5433
-- **Product Service DB**: localhost:5434
-- **Order Service DB**: localhost:5435
-
-### Phương án 2: Chạy Manual (Development)
-
-#### Bước 1: Clone repository
-```bash
-git clone https://github.com/congdinh2008/python-micro.git
-cd python-micro
-```
-
-#### Bước 2: Setup User Service
+### Run Locally
 
 ```bash
-# Linux/Mac
-./start-user-service.sh
-
-# Windows
-start-user-service.bat
-```
-
-Hoặc manual:
-
-```bash
+# Individual service
 cd user-service
-
-# Create virtual environment
 python -m venv venv
-
-# Activate (Linux/Mac)
 source venv/bin/activate
-# Activate (Windows)
-venv\Scripts\activate
-
-# Install dependencies
 pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --reload --port 8001
+```
 
-# Configure environment
-cp .env.example .env
-# Edit .env with your configuration
+### Database Migrations
 
-# Run migrations
+```bash
+# Create migration
+cd user-service
+alembic revision --autogenerate -m "description"
+
+# Apply migration
 alembic upgrade head
 
-# Start service
-uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
-```
-
-#### Bước 3: Setup Product Service
-
-Mở terminal mới:
-
-```bash
-# Linux/Mac
-./start-product-service.sh
-
-# Windows
-start-product-service.bat
-```
-
-Hoặc manual:
-
-```bash
-cd product-service
-
-# Create virtual environment
-python -m venv venv
-
-# Activate (Linux/Mac)
-source venv/bin/activate
-# Activate (Windows)
-venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure environment
-cp .env.example .env
-# Edit .env - đảm bảo USER_SERVICE_URL đúng
-
-# Run migrations
-alembic upgrade head
-
-# Start service
-uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload
-```
-
-### Cấu hình Environment Variables
-
-#### User Service (.env)
-```env
-DATABASE_URL=postgresql://user:password@localhost:5432/user_service_db
-# Or SQLite: DATABASE_URL=sqlite:///./user_service.db
-
-SECRET_KEY=your-secret-key-change-this-in-production-min-32-characters
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-PORT=8001
-```
-
-#### Product Service (.env)
-```env
-DATABASE_URL=postgresql://user:password@localhost:5432/product_service_db
-# Or SQLite: DATABASE_URL=sqlite:///./product_service.db
-
-USER_SERVICE_URL=http://localhost:8001
-PORT=8002
-```
-
-> ⚠️ **Security Note**: Trong production, đổi `SECRET_KEY` thành một chuỗi ngẫu nhiên dài ít nhất 32 ký tự.
-
-## 📖 Hướng dẫn Sử dụng API
-
-### Truy cập API Documentation
-
-- **User Service**:
-  - Swagger UI: http://localhost:8001/docs
-  - ReDoc: http://localhost:8001/redoc
-
-- **Product Service**:
-  - Swagger UI: http://localhost:8002/docs
-  - ReDoc: http://localhost:8002/redoc
-
-### Luồng Authentication giữa Services
-
-```
-1. Client → POST /register (User Service) → Create user
-2. Client → POST /login (User Service) → Get JWT token
-3. Client → POST /products (Product Service + JWT) 
-   → Product Service → POST /validate-token (User Service)
-   → User Service validates token → Return username
-   → Product Service creates product
-```
-
-### 1. Đăng ký User mới (User Service)
-
-```bash
-curl -X POST http://localhost:8001/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "testuser",
-    "password": "testpass123"
-  }'
-```
-
-**Response**:
-```json
-{
-  "id": 1,
-  "username": "testuser",
-  "is_active": true,
-  "created_at": "2025-10-16T18:00:00.000000",
-  "updated_at": "2025-10-16T18:00:00.000000"
-}
-```
-
-### 2. Đăng nhập và lấy JWT Token (User Service)
-
-```bash
-curl -X POST http://localhost:8001/login \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=testuser&password=testpass123"
-```
-
-**Response**:
-```json
-{
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "token_type": "bearer"
-}
-```
-
-> 💡 Lưu `access_token` để sử dụng cho các requests tiếp theo
-
-### 3. Tạo Sản phẩm mới (Product Service - yêu cầu JWT)
-
-```bash
-# Set token variable
-TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-
-curl -X POST http://localhost:8002/products \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{
-    "name": "Laptop Dell XPS 15",
-    "description": "High-performance laptop",
-    "price": 25000000,
-    "quantity": 10
-  }'
-```
-
-**Response**:
-```json
-{
-  "id": 1,
-  "name": "Laptop Dell XPS 15",
-  "description": "High-performance laptop",
-  "price": 25000000.0,
-  "quantity": 10,
-  "created_at": "2025-10-16T18:00:00.000000",
-  "updated_at": "2025-10-16T18:00:00.000000"
-}
-```
-
-### 4. Lấy danh sách Sản phẩm (Product Service - public)
-
-```bash
-curl http://localhost:8002/products
-```
-
-**Query Parameters**:
-- `skip`: Số sản phẩm bỏ qua (default: 0)
-- `limit`: Số lượng tối đa trả về (default: 100)
-
-```bash
-curl "http://localhost:8002/products?skip=0&limit=10"
-```
-
-### 5. Lấy chi tiết Sản phẩm (Product Service - public)
-
-```bash
-curl http://localhost:8002/products/1
-```
-
-### 6. Cập nhật Sản phẩm (Product Service - yêu cầu JWT)
-
-```bash
-curl -X PUT http://localhost:8002/products/1 \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{
-    "price": 24000000,
-    "quantity": 15
-  }'
-```
-
-> 💡 Chỉ cần cung cấp các fields muốn cập nhật
-
-### 7. Xóa Sản phẩm (Product Service - yêu cầu JWT)
-
-```bash
-curl -X DELETE http://localhost:8002/products/1 \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-**Response**: 204 No Content
-
-### 8. Health Checks
-
-```bash
-# User Service health
-curl http://localhost:8001/health
-
-# Product Service health
-curl http://localhost:8002/health
-```
-
-## 💡 Tính năng Nổi bật
-
-### 1. Microservices Architecture
-- **Independent Services**: Mỗi service chạy độc lập với database riêng
-- **Loose Coupling**: Services giao tiếp qua REST API
-- **Scalability**: Có thể scale từng service riêng biệt
-- **Technology Freedom**: Mỗi service có thể dùng tech stack riêng
-
-### 2. Repository Pattern
-- **Tách biệt Data Access**: Repository layer độc lập với business logic
-- **Generic Base Repository**: Reusable CRUD operations
-- **Type-safe**: Sử dụng Python Generics cho type safety
-
-### 3. JWT Authentication with Service Delegation
-- **User Service**: Generate và validate JWT tokens
-- **Product Service**: Delegate validation đến User Service
-- **No JWT Secrets in Product Service**: Tăng bảo mật
-- **Centralized Auth**: Tất cả auth logic ở một nơi
-
-### 4. Clean Architecture
-- **Separation of Concerns**: Mỗi layer có trách nhiệm rõ ràng
-- **Testability**: Dễ dàng test từng layer
-- **Maintainability**: Code dễ maintain và extend
-
-### 5. Automatic Validation
-- **Pydantic Schemas**: Tự động validate request/response data
-- **Type Checking**: Type hints đầy đủ trong toàn bộ codebase
-- **Clear Error Messages**: Error messages rõ ràng bằng tiếng Việt
-
-### 6. Database Migrations
-- **Alembic Integration**: Quản lý database schema changes
-- **Independent Migrations**: Mỗi service có migrations riêng
-- **Version Control**: Track database changes trong version control
-- **Easy Rollback**: Có thể rollback migrations nếu cần
-
-### 7. API Documentation
-- **Swagger UI**: Interactive API documentation tự động cho cả 2 services
-- **ReDoc**: Alternative documentation interface
-- **OpenAPI Spec**: Standard OpenAPI 3.0 specification
-
-### 8. Docker Support
-- **Docker Compose**: Chạy tất cả services với 1 command
-- **Isolated Environment**: Mỗi service trong container riêng
-- **Easy Deployment**: Deploy dễ dàng lên production
-
-## 🔧 Database Migrations với Alembic
-
-### Tạo Migration mới
-
-Khi thay đổi models (thêm/sửa/xóa fields):
-
-```bash
-alembic revision --autogenerate -m "Mô tả thay đổi"
-```
-
-### Chạy Migrations
-
-```bash
-# Upgrade đến version mới nhất
-alembic upgrade head
-
-# Upgrade đến một version cụ thể
-alembic upgrade <revision_id>
-```
-
-### Rollback Migrations
-
-```bash
-# Downgrade về version trước
+# Rollback
 alembic downgrade -1
-
-# Downgrade đến một version cụ thể
-alembic downgrade <revision_id>
 ```
 
-### Xem Migration History
+---
+
+## 🚢 Deployment
+
+### Docker Deployment
 
 ```bash
-alembic history
+# Start all services
+docker compose up -d
 
-# Xem current version
-alembic current
-```
-
-## 🔐 Security Notes
-
-### Production Deployment
-
-Khi deploy lên production, đảm bảo:
-
-1. **SECRET_KEY (User Service)**: Sử dụng một secret key mạnh, ngẫu nhiên
-   ```bash
-   # Generate secure secret key
-   openssl rand -hex 32
-   ```
-
-2. **Database URLs**: Không commit DATABASE_URL vào Git
-   ```bash
-   # Thêm .env vào .gitignore
-   echo ".env" >> .gitignore
-   echo "user-service/.env" >> .gitignore
-   echo "product-service/.env" >> .gitignore
-   ```
-
-3. **HTTPS**: Sử dụng HTTPS cho production
-4. **CORS**: Chỉ allow origins cần thiết
-5. **Rate Limiting**: Implement rate limiting để tránh abuse
-6. **Environment**: Set `DEBUG=False` trong production
-7. **Service URLs**: Sử dụng internal service URLs trong production
-8. **Network Isolation**: Chỉ expose public endpoints ra internet
-
-### Best Practices
-
-- ✅ Luôn validate input data với Pydantic
-- ✅ Sử dụng environment variables cho sensitive data
-- ✅ Hash passwords trước khi lưu vào database
-- ✅ Set expiration time cho JWT tokens
-- ✅ Implement proper error handling
-- ✅ Log security events
-- ✅ Separate databases cho mỗi service
-- ✅ Use service-to-service authentication
-- ✅ Monitor inter-service communication
-
-## 🔄 Inter-Service Communication
-
-### How Product Service Validates Tokens
-
-```python
-# Product Service calls User Service
-import httpx
-
-async def validate_token(token: str):
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            f"{USER_SERVICE_URL}/validate-token",
-            json={"token": token},
-            timeout=5.0
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            if data.get("valid"):
-                return data.get("username")
-        
-        return None
-```
-
-### Benefits of This Architecture
-
-1. **No JWT Secrets in Product Service**: Tăng bảo mật
-2. **Centralized Token Management**: Dễ maintain và update
-3. **Service Independence**: Product Service không cần biết JWT implementation
-4. **Easy to Scale**: Có thể thêm nhiều services khác sử dụng cùng User Service
-5. **Token Revocation**: Dễ dàng revoke tokens ở User Service
-
-## 🧪 Testing
-
-### Manual Testing với curl
-
-Xem phần "Hướng dẫn Sử dụng API" ở trên.
-
-### Testing với Swagger UI
-
-1. Truy cập http://localhost:8000/docs
-2. Click "Try it out" trên các endpoints
-3. Nhập data và execute
-4. Xem response trực tiếp
-
-### Postman Collection
-
-Có thể import các curl commands vào Postman để tạo collection:
-1. Mở Postman
-2. Import → Raw text → Paste curl commands
-3. Lưu thành collection để reuse
-
-## 🚀 Production Deployment
-
-### Với Docker Compose (Recommended)
-
-```bash
-# Build và start services
-docker-compose up -d --build
-
-# Scale services nếu cần
-docker-compose up -d --scale user-service=2 --scale product-service=3
+# Scale services
+docker compose up -d --scale product-service=3
 
 # View logs
-docker-compose logs -f
+docker compose logs -f [service-name]
 
-# Stop services
-docker-compose down
+# Stop all
+docker compose down
 ```
 
-### Với Kubernetes
+### Production Checklist
 
-Tạo deployment files cho mỗi service:
+- [ ] Update `.env` with production values
+- [ ] Set strong `SECRET_KEY` for JWT
+- [ ] Configure specific CORS origins
+- [ ] Set up database backups
+- [ ] Configure SSL/TLS
+- [ ] Set up monitoring alerts
+- [ ] Enable rate limiting
 
-```yaml
-# user-service-deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: user-service
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: user-service
-  template:
-    metadata:
-      labels:
-        app: user-service
-    spec:
-      containers:
-      - name: user-service
-        image: your-registry/user-service:latest
-        ports:
-        - containerPort: 8001
-        env:
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: user-service-secrets
-              key: database-url
-```
+See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for details.
 
-### Environment Variables cho Production
+---
 
-```env
-# User Service
-DATABASE_URL=postgresql://user:secure-password@prod-db:5432/user_service_db
-SECRET_KEY=<generate-with-openssl-rand-hex-32>
-DEBUG=False
-PORT=8001
+## 📊 Monitoring
 
-# Product Service  
-DATABASE_URL=postgresql://user:secure-password@prod-db:5432/product_service_db
-USER_SERVICE_URL=http://user-service:8001
-DEBUG=False
-PORT=8002
-```
+### Access Monitoring Tools
 
-## 🔧 Troubleshooting
-
-### User Service không khởi động được
-
-**Error**: `FATAL: database "user_service_db" does not exist`
-
-**Solution**:
 ```bash
-# Tạo database trong PostgreSQL
-createdb user_service_db
+# Grafana Dashboard
+http://localhost:3000
+# Login: admin/admin
 
-# Hoặc sử dụng SQLite (development)
-# Trong user-service/.env:
-DATABASE_URL=sqlite:///./user_service.db
+# Prometheus Metrics
+http://localhost:9090
+
+# Jaeger Traces
+http://localhost:16686
+
+# RabbitMQ Management
+http://localhost:15672
+# Login: guest/guest
 ```
 
-### Product Service không kết nối được User Service
+### Key Metrics
 
-**Error**: `Error validating token with User Service`
+- **Request Rate** - Requests per second
+- **Response Time** - p50, p95, p99 latencies
+- **Error Rate** - 4xx and 5xx responses
+- **Cache Hit Rate** - Redis effectiveness
+- **Queue Depth** - RabbitMQ backlog
 
-**Solution**:
-```bash
-# Kiểm tra User Service đang chạy
-curl http://localhost:8001/health
+See [DEVOPS_README.md](./DEVOPS_README.md) for details.
 
-# Kiểm tra USER_SERVICE_URL trong product-service/.env
-USER_SERVICE_URL=http://localhost:8001
-```
+---
 
-### Port đã được sử dụng
+## 🤝 Contributing
 
-**Error**: `Address already in use`
-
-**Solution**:
-```bash
-# User Service - sử dụng port khác
-uvicorn app.main:app --port 8003
-
-# Product Service - sử dụng port khác
-uvicorn app.main:app --port 8004
-```
-
-### Lỗi Migration
-
-**Error**: `Can't locate revision identified by 'xxx'`
-
-**Solution**:
-```bash
-# Trong user-service hoặc product-service
-rm -rf alembic/versions/*.py
-alembic revision --autogenerate -m "Initial migration"
-alembic upgrade head
-```
-
-### Docker Compose không khởi động
-
-**Solution**:
-```bash
-# Xem logs để debug
-docker-compose logs -f
-
-# Restart services
-docker-compose down
-docker-compose up -d --build
-```
-
-## 🤝 Contribution
-
-Contributions are welcome! Please:
-
-1. Fork repository
+1. Fork the repository
 2. Create feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
+3. Commit changes (`git commit -m 'Add AmazingFeature'`)
 4. Push to branch (`git push origin feature/AmazingFeature`)
 5. Open Pull Request
 
+---
+
+## 📜 License
+
+This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+## 👥 Authors
+
+- **Cong Dinh** - [@congdinh2008](https://github.com/congdinh2008)
+
+---
+
 ## 📞 Support
 
-- Issues: https://github.com/congdinh2008/python-micro/issues
-- Email: congdinh2008@gmail.com
-
-## 📝 Code Quality & Best Practices
-
-### PEP8 Compliance
-- Tên biến, hàm: snake_case
-- Tên class: PascalCase
-- Docstrings đầy đủ cho tất cả modules, classes, functions
-- Type hints đầy đủ cho parameters và return values
-
-### Architecture Principles
-- **Microservices**: Services độc lập với databases riêng
-- **Repository Pattern**: Tách biệt data access layer
-- **Dependency Injection**: FastAPI Depends() cho loose coupling
-- **Single Responsibility**: Mỗi layer có trách nhiệm rõ ràng
-- **Clean Code**: Code dễ đọc, dễ maintain, dễ test
-- **Service Communication**: REST API giữa services
-- **No Shared State**: Mỗi service quản lý state riêng
-
-### Testing Strategy
-- **Unit Tests**: Test từng layer riêng biệt
-- **Integration Tests**: Test giao tiếp giữa services
-- **API Tests**: Test endpoints với Swagger UI
-- **Load Tests**: Test performance và scalability
-
-## 🎓 Learning Outcomes
-
-Dự án này giúp bạn học:
-
-- ✅ Microservices Architecture patterns
-- ✅ Service-to-service communication via REST API
-- ✅ JWT authentication and authorization
-- ✅ Repository Pattern implementation
-- ✅ Clean Architecture principles
-- ✅ Database migrations với Alembic
-- ✅ Docker và Docker Compose
-- ✅ FastAPI framework
-- ✅ SQLAlchemy 2.0 ORM
-- ✅ Pydantic validation
-- ✅ Environment-based configuration
-
-## 👨‍💻 Tác giả
-
-- **Cong Dinh**
-- Repository: [python-micro](https://github.com/congdinh2008/python-micro)
-- Email: congdinh2008@gmail.com
-
-## 📄 License
-
-Dự án này được tạo ra cho mục đích học tập và giảng dạy.
+- 📧 Email: congdinh2008@example.com
+- 🐛 Issues: [GitHub Issues](https://github.com/congdinh2008/python-micro/issues)
 
 ---
 
-## 🆕 Assignment 4: Redis & RabbitMQ Integration
+## 🗺️ Roadmap
 
-### ✨ New Features
+See [CHANGELOG.md](./CHANGELOG.md) for version history.
 
-**Redis Caching:**
-- ✅ Cache product details (GET /products/{id})
-- ✅ TTL: 300 seconds (configurable)
-- ✅ Auto-invalidation on update/delete
-- ✅ Graceful degradation
+### Upcoming Features
 
-**RabbitMQ Messaging:**
-- ✅ Order Service publishes order.created events
-- ✅ Notification Service consumes events
-- ✅ Topic exchange with routing keys
-- ✅ Persistent messages
-
-**New Services:**
-- ✅ Order Service (Port 8003)
-- ✅ Notification Service (Port 8004)
-
-### 📚 Additional Documentation
-
-- **Assignment 4 Complete Guide**: [ASSIGNMENT_4_README.md](ASSIGNMENT_4_README.md)
-- **Order Service README**: [order-service/README.md](order-service/README.md)
-- **Notification Service README**: [notification-service/README.md](notification-service/README.md)
-
-### 🧪 Testing Assignment 4
-
-```bash
-# Run the automated test script
-./test_assignment4.sh
-
-# Or test manually:
-# 1. Start all services
-docker-compose up -d
-
-# 2. View logs
-docker-compose logs -f
-
-# 3. Access services
-# - User Service: http://localhost:8001/docs
-# - Product Service: http://localhost:8002/docs
-# - Order Service: http://localhost:8003/docs
-# - Notification Service: http://localhost:8004/docs
-# - RabbitMQ UI: http://localhost:15672 (guest/guest)
-
-# 4. Monitor Redis
-docker exec -it redis-cache redis-cli
-> KEYS *
-> GET product:1
-> TTL product:1
-
-# 5. Check RabbitMQ
-# Visit http://localhost:15672
-# - Check exchange: order_events
-# - Check queue: order_notifications
-# - Monitor message rates
-```
+- API Gateway with Kong/Nginx
+- Kubernetes deployment
+- GraphQL API layer
+- CI/CD with GitHub Actions
+- Service mesh integration
 
 ---
 
-**Happy Coding! 🚀 Built with ❤️ using FastAPI and Microservices Architecture**
+**⭐ If you find this project helpful, please give it a star!**
+
+---
+
+**Last Updated:** October 17, 2025  
+**Version:** 1.4.0  
+**Status:** ✅ Production Ready
