@@ -7,6 +7,7 @@ import asyncio
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.config import settings
 from app.utils.rabbitmq import rabbitmq_consumer
@@ -48,6 +49,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Setup Prometheus metrics
+Instrumentator().instrument(app).expose(app)
 
 
 @app.get(

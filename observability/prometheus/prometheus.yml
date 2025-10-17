@@ -1,0 +1,98 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'python-micro'
+    environment: 'production'
+
+# Alertmanager configuration (optional)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  # - "alerts/*.yml"
+
+# A scrape configuration for Prometheus itself
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+  # User Service metrics
+  - job_name: 'user-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['user-service:8001']
+        labels:
+          service: 'user-service'
+          team: 'auth'
+
+  # Product Service metrics
+  - job_name: 'product-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['product-service:8002']
+        labels:
+          service: 'product-service'
+          team: 'catalog'
+
+  # Order Service metrics
+  - job_name: 'order-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['order-service:8003']
+        labels:
+          service: 'order-service'
+          team: 'transactions'
+
+  # Notification Service metrics
+  - job_name: 'notification-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['notification-service:8004']
+        labels:
+          service: 'notification-service'
+          team: 'communications'
+
+  # PostgreSQL exporters
+  - job_name: 'postgres-user-db'
+    static_configs:
+      - targets: ['postgres-exporter-user:9187']
+        labels:
+          service: 'postgres'
+          database: 'user-service-db'
+
+  - job_name: 'postgres-product-db'
+    static_configs:
+      - targets: ['postgres-exporter-product:9187']
+        labels:
+          service: 'postgres'
+          database: 'product-service-db'
+
+  - job_name: 'postgres-order-db'
+    static_configs:
+      - targets: ['postgres-exporter-order:9187']
+        labels:
+          service: 'postgres'
+          database: 'order-service-db'
+
+  # Redis exporter
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          service: 'redis'
+
+  # RabbitMQ metrics
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['rabbitmq:15692']
+        labels:
+          service: 'rabbitmq'

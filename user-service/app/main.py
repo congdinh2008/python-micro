@@ -5,6 +5,7 @@ Microservice for user authentication with JWT
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.config import settings
 from app.api import auth
@@ -44,6 +45,9 @@ app.add_middleware(
 
 # Include routers
 app.include_router(auth.router)
+
+# Setup Prometheus metrics
+Instrumentator().instrument(app).expose(app)
 
 
 @app.get(

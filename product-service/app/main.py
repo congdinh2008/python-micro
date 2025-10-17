@@ -5,6 +5,7 @@ Microservice for product management with authentication via User Service
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.config import settings
 from app.api import products
@@ -47,6 +48,9 @@ app.add_middleware(
 
 # Include routers
 app.include_router(products.router)
+
+# Setup Prometheus metrics
+Instrumentator().instrument(app).expose(app)
 
 
 @app.get(

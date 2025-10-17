@@ -6,6 +6,7 @@ Microservice for order management with RabbitMQ integration
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.config import settings
 from app.api import orders
@@ -57,6 +58,9 @@ app.add_middleware(
 
 # Include routers
 app.include_router(orders.router)
+
+# Setup Prometheus metrics
+Instrumentator().instrument(app).expose(app)
 
 
 @app.get(
