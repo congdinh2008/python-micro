@@ -43,12 +43,12 @@ Kiến trúc Microservices hoàn chỉnh với 4 services độc lập: **User S
                                        │
      ┌─────────────────┐               │
      │   Product DB    │               ▼
-     │   (Postgres)    │      ┌────────────────┐
+     │  (Postgres)     │      ┌────────────────┐
      └─────────────────┘      │ Notification   │
                               │   Service      │
      ┌─────────────────┐      │   (8004)       │
      │    Order DB     │      │                │
-     │   (Postgres)    │      │ Email/SMS/Push │
+     │  (Postgres)     │      │ Email/SMS/Push │
      └─────────────────┘      └────────────────┘
 ```
 

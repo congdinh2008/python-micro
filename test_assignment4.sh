@@ -2,6 +2,14 @@
 
 # Assignment 4 Testing Script
 # Tests Redis Cache, Order Service, and RabbitMQ integration
+#
+# Usage:
+#   chmod +x test_assignment4.sh
+#   ./test_assignment4.sh
+#
+# Prerequisites:
+#   - All services running (docker-compose up -d)
+#   - curl and jq installed
 
 set -e
 
@@ -90,6 +98,8 @@ PRODUCT_ID=$(echo "$PRODUCT_RESPONSE" | jq -r '.id')
 
 if [ -z "$PRODUCT_ID" ] || [ "$PRODUCT_ID" = "null" ]; then
     echo -e "${RED}❌ Failed to create product${NC}"
+    echo "Response:"
+    echo "$PRODUCT_RESPONSE" | jq '.'
     exit 1
 fi
 
@@ -202,5 +212,7 @@ echo ""
 echo "Next steps:"
 echo "  1. Check RabbitMQ Management UI: http://localhost:15672 (guest/guest)"
 echo "  2. View service logs: docker-compose logs -f"
-echo "  3. Monitor Redis: docker exec -it redis-cache redis-cli"
+echo "  3. Monitor Redis (container name may vary):"
+echo "     docker exec -it redis-cache redis-cli"
+echo "     Or: docker exec -it \$(docker ps -qf 'name=redis') redis-cli"
 echo ""
