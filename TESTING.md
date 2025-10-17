@@ -7,6 +7,11 @@ This document provides instructions for testing the User Service and Product Ser
 - Python 3.9+
 - PostgreSQL 12+ (or SQLite for development)
 - pip or pipenv
+- curl (for testing)
+- jq (optional, for JSON parsing in bash scripts)
+  - Linux: `sudo apt install jq` or `sudo yum install jq`
+  - Mac: `brew install jq`
+  - Windows: Download from https://stedolan.github.io/jq/download/
 
 ## Testing Strategy
 
@@ -55,9 +60,16 @@ curl -X POST http://localhost:8001/register \
   -d '{"username": "testuser", "password": "testpass123"}'
 
 # 3. Login and get token
+# If you have jq installed:
 TOKEN=$(curl -X POST http://localhost:8001/login \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "username=testuser&password=testpass123" | jq -r '.access_token')
+
+# Without jq, manually copy the access_token from response:
+# curl -X POST http://localhost:8001/login \
+#   -H "Content-Type: application/x-www-form-urlencoded" \
+#   -d "username=testuser&password=testpass123"
+# Then set: TOKEN="<paste_access_token_here>"
 
 echo "Token: $TOKEN"
 
@@ -119,11 +131,17 @@ curl -X POST http://localhost:8002/products \
 
 ### 3. Integration Testing
 
-Test the complete flow between services:
+Test the complete flow between services.
+
+**Note**: This script requires bash and jq. For Windows users, use Git Bash or WSL.
+
+Create `integration-test.sh`:
 
 ```bash
 #!/bin/bash
 # integration-test.sh
+# Requires: bash, curl, jq
+# For Windows: Use Git Bash or WSL
 
 set -e
 
@@ -239,19 +257,49 @@ docker-compose down
 1. **Port in use**: Change ports in .env files
 2. **User Service unreachable**: Check USER_SERVICE_URL in product-service/.env
 3. **Database errors**: Ensure migrations are run with `alembic upgrade head`
-4. **Token validation fails**: Verify SECRET_KEY is same in both services' configs (only User Service needs it)
+4. **Token validation fails**: 
+   - Only User Service needs SECRET_KEY for JWT generation and validation
+   - Product Service does NOT need SECRET_KEY (it validates via User Service REST API)
+   - If validation fails, check that User Service is running and USER_SERVICE_URL is correct
 
 ## Performance Testing
 
-Use tools like Apache Bench or wrk:
+Use tools like Apache Bench (ab) or wrk:
 
 ```bash
+# First, create login.txt with form data:
+echo "username=testuser&password=testpass123" > login.txt
+
 # Test User Service login endpoint
 ab -n 1000 -c 10 -p login.txt -T 'application/x-www-form-urlencoded' \
   http://localhost:8001/login
 
-# Test Product Service GET endpoint
+# Test Product Service GET endpoint (no auth required)
 ab -n 1000 -c 10 http://localhost:8002/products
+
+# Clean up
+rm login.txt
+```
+
+Alternative with wrk (if installed):
+
+```bash
+# Test GET endpoint
+wrk -t4 -c100 -d30s http://localhost:8002/products
+
+# Test POST with lua script for authenticated requests
+# Create post.lua:
+cat > post.lua << 'EOF'
+wrk.method = "POST"
+wrk.headers["Content-Type"] = "application/json"
+wrk.headers["Authorization"] = "Bearer YOUR_TOKEN_HERE"
+wrk.body = '{"name":"Test","price":10,"quantity":5}'
+EOF
+
+wrk -t4 -c100 -d30s -s post.lua http://localhost:8002/products
+
+# Clean up
+rm post.lua
 ```
 
 ## Security Testing
