@@ -1,5 +1,5 @@
 """
-Product Service Settings - Configuration from environment variables
+Order Service Settings - Configuration from environment variables
 Uses Pydantic Settings to validate and load configuration
 """
 
@@ -9,28 +9,33 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     """
-    Settings class for Product Service configuration
+    Settings class for Order Service configuration
     Loads from environment variables and .env file
     """
 
     # Database Configuration
-    DATABASE_URL: str = "postgresql://user:password@localhost:5432/product_service_db"
+    DATABASE_URL: str = "postgresql://user:password@localhost:5432/order_service_db"
 
     # User Service Configuration
     USER_SERVICE_URL: str = "http://localhost:8001"
 
-    # Redis Configuration
-    REDIS_HOST: str = "localhost"
-    REDIS_PORT: int = 6379
-    REDIS_DB: int = 0
-    REDIS_PASSWORD: str = ""
-    CACHE_TTL: int = 300  # 5 minutes default
+    # Product Service Configuration
+    PRODUCT_SERVICE_URL: str = "http://localhost:8002"
+
+    # RabbitMQ Configuration
+    RABBITMQ_HOST: str = "localhost"
+    RABBITMQ_PORT: int = 5672
+    RABBITMQ_USER: str = "guest"
+    RABBITMQ_PASSWORD: str = "guest"
+    RABBITMQ_EXCHANGE: str = "order_events"
+    RABBITMQ_QUEUE: str = "order_notifications"
+    RABBITMQ_ROUTING_KEY: str = "order.created"
 
     # Application Configuration
-    APP_NAME: str = "Product Service"
+    APP_NAME: str = "Order Service"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
-    PORT: int = 8002
+    PORT: int = 8003
 
     # CORS Configuration
     ALLOWED_ORIGINS: List[str] = [
@@ -38,6 +43,7 @@ class Settings(BaseSettings):
         "http://localhost:8000",
         "http://localhost:8001",
         "http://localhost:8002",
+        "http://localhost:8003",
     ]
 
     model_config = SettingsConfigDict(
