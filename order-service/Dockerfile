@@ -27,16 +27,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Python dependencies from builder
-COPY --from=builder /root/.local /root/.local
+# Copy Python dependencies from builder to /usr/local
+COPY --from=builder /root/.local /usr/local
 
 # Make sure scripts in .local are usable
-ENV PATH=/root/.local/bin:$PATH
+ENV PATH=/usr/local/bin:$PATH
 
 # Copy application code
 COPY . .
 
-# Create non-root user
+# Create non-root user and fix permissions
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
