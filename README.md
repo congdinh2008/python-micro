@@ -1,37 +1,55 @@
-# 🚀 Python Microservices - User & Product Services
+# 🚀 Python Microservices - Complete E-commerce System
 
-Kiến trúc Microservices với 2 service độc lập: **User Service** (Authentication) và **Product Service** (Product Management), xây dựng bằng FastAPI, SQLAlchemy 2.0, PostgreSQL, và áp dụng Clean Architecture.
+Kiến trúc Microservices hoàn chỉnh với 4 services độc lập: **User Service** (Authentication), **Product Service** (Product Management với Redis Cache), **Order Service** (Order Management với RabbitMQ), và **Notification Service** (Async Notifications), xây dựng bằng FastAPI, SQLAlchemy 2.0, PostgreSQL, Redis, RabbitMQ, và áp dụng Clean Architecture.
 
 ## 🎯 Mục tiêu
 
 - Xây dựng kiến trúc Microservices với services độc lập
-- Tách biệt Authentication (User Service) và Product Management (Product Service)
-- Giao tiếp giữa services qua REST API
+- Tách biệt Authentication (User Service), Product Management (Product Service), Order Management (Order Service), và Notifications (Notification Service)
+- Giao tiếp đồng bộ qua REST API và bất đồng bộ qua RabbitMQ
+- Tối ưu hiệu năng với Redis Cache
 - Áp dụng Repository Pattern và Clean Architecture
 - Sử dụng SQLAlchemy 2.0 với PostgreSQL
 - Quản lý schema bằng Alembic migrations độc lập cho mỗi service
+- Message-driven architecture với RabbitMQ
 
 ## 🏗️ Kiến trúc Microservices
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         Client                               │
-└─────────────────────────────────────────────────────────────┘
-                    │                    │
-                    │                    │
-        ┌───────────▼──────────┐  ┌─────▼──────────────┐
-        │   User Service       │  │  Product Service   │
-        │   (Port 8001)        │  │  (Port 8002)       │
-        │                      │  │                    │
-        │  - Register          │  │  - CRUD Products   │
-        │  - Login             │◄─┤  - Validates JWT   │
-        │  - Validate Token    │  │    via REST API    │
-        └──────────┬───────────┘  └─────┬──────────────┘
-                   │                     │
-        ┌──────────▼───────────┐  ┌─────▼──────────────┐
-        │  User Service DB     │  │ Product Service DB │
-        │  (PostgreSQL)        │  │ (PostgreSQL)       │
-        └──────────────────────┘  └────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                         Client                                    │
+└────┬─────────────────┬─────────────────┬─────────────────────────┘
+     │                 │                 │
+     ▼                 ▼                 ▼
+┌──────────┐    ┌──────────┐     ┌──────────┐
+│  User    │    │ Product  │     │  Order   │
+│ Service  │◄───│ Service  │◄────│ Service  │
+│ (8001)   │    │ (8002)   │     │ (8003)   │
+│          │    │          │     │          │
+│ Auth &   │    │ Products │     │ Orders & │
+│ Validate │    │ + Cache  │     │ Events   │
+└────┬─────┘    └────┬─────┘     └────┬─────┘
+     │               │                 │
+     │         ┌─────▼─────┐           │
+     │         │   Redis   │           │
+     │         │   Cache   │           │
+     │         └───────────┘           │
+     │                                 │
+     ▼                                 ▼
+┌─────────┐                     ┌──────────────┐
+│ User DB │                     │   RabbitMQ   │
+│(Postgres│                     │   Exchange   │
+└─────────┘                     └──────┬───────┘
+                                       │
+     ┌─────────────────┐               │
+     │   Product DB    │               ▼
+     │   (Postgres)    │      ┌────────────────┐
+     └─────────────────┘      │ Notification   │
+                              │   Service      │
+     ┌─────────────────┐      │   (8004)       │
+     │    Order DB     │      │                │
+     │   (Postgres)    │      │ Email/SMS/Push │
+     └─────────────────┘      └────────────────┘
 ```
 
 ## ✨ Tính năng
@@ -45,10 +63,23 @@ Kiến trúc Microservices với 2 service độc lập: **User Service** (Authe
 ### 📦 Product Service (Port 8002)
 - ✅ **Tạo sản phẩm**: `POST /products` - Tạo sản phẩm mới (yêu cầu JWT)
 - ✅ **Lấy danh sách**: `GET /products` - Lấy tất cả sản phẩm với pagination (public)
-- ✅ **Lấy chi tiết**: `GET /products/{id}` - Chi tiết một sản phẩm (public)
-- ✅ **Cập nhật**: `PUT /products/{id}` - Cập nhật sản phẩm (yêu cầu JWT)
-- ✅ **Xóa**: `DELETE /products/{id}` - Xóa sản phẩm (yêu cầu JWT)
-- ✅ **Health Check**: `GET /health` - Kiểm tra trạng thái service
+- ✅ **Lấy chi tiết**: `GET /products/{id}` - Chi tiết một sản phẩm với Redis cache (public)
+- ✅ **Cập nhật**: `PUT /products/{id}` - Cập nhật sản phẩm và invalidate cache (yêu cầu JWT)
+- ✅ **Xóa**: `DELETE /products/{id}` - Xóa sản phẩm và invalidate cache (yêu cầu JWT)
+- ✅ **Health Check**: `GET /health` - Kiểm tra trạng thái service và Redis
+
+### 🛒 Order Service (Port 8003)
+- ✅ **Tạo đơn hàng**: `POST /orders` - Tạo đơn hàng và publish event (yêu cầu JWT)
+- ✅ **Lấy danh sách**: `GET /orders` - Lấy đơn hàng của user (yêu cầu JWT)
+- ✅ **Lấy chi tiết**: `GET /orders/{id}` - Chi tiết một đơn hàng (yêu cầu JWT)
+- ✅ **Cập nhật**: `PUT /orders/{id}` - Cập nhật trạng thái đơn hàng (yêu cầu JWT)
+- ✅ **Xóa**: `DELETE /orders/{id}` - Xóa đơn hàng (yêu cầu JWT)
+- ✅ **Health Check**: `GET /health` - Kiểm tra trạng thái service và RabbitMQ
+
+### 📧 Notification Service (Port 8004)
+- ✅ **RabbitMQ Consumer**: Lắng nghe order.created events
+- ✅ **Send Notifications**: Gửi email/SMS/push notifications
+- ✅ **Health Check**: `GET /health` - Kiểm tra trạng thái service và RabbitMQ
 
 ## 📁 Cấu trúc Project
 
@@ -225,8 +256,13 @@ docker-compose down
 Services sẽ chạy tại:
 - **User Service**: http://localhost:8001
 - **Product Service**: http://localhost:8002
+- **Order Service**: http://localhost:8003
+- **Notification Service**: http://localhost:8004
+- **RabbitMQ Management UI**: http://localhost:15672 (guest/guest)
+- **Redis**: localhost:6379
 - **User Service DB**: localhost:5433
 - **Product Service DB**: localhost:5434
+- **Order Service DB**: localhost:5435
 
 ### Phương án 2: Chạy Manual (Development)
 
@@ -853,6 +889,67 @@ Dự án này giúp bạn học:
 ## 📄 License
 
 Dự án này được tạo ra cho mục đích học tập và giảng dạy.
+
+---
+
+## 🆕 Assignment 4: Redis & RabbitMQ Integration
+
+### ✨ New Features
+
+**Redis Caching:**
+- ✅ Cache product details (GET /products/{id})
+- ✅ TTL: 300 seconds (configurable)
+- ✅ Auto-invalidation on update/delete
+- ✅ Graceful degradation
+
+**RabbitMQ Messaging:**
+- ✅ Order Service publishes order.created events
+- ✅ Notification Service consumes events
+- ✅ Topic exchange with routing keys
+- ✅ Persistent messages
+
+**New Services:**
+- ✅ Order Service (Port 8003)
+- ✅ Notification Service (Port 8004)
+
+### 📚 Additional Documentation
+
+- **Assignment 4 Complete Guide**: [ASSIGNMENT_4_README.md](ASSIGNMENT_4_README.md)
+- **Order Service README**: [order-service/README.md](order-service/README.md)
+- **Notification Service README**: [notification-service/README.md](notification-service/README.md)
+
+### 🧪 Testing Assignment 4
+
+```bash
+# Run the automated test script
+./test_assignment4.sh
+
+# Or test manually:
+# 1. Start all services
+docker-compose up -d
+
+# 2. View logs
+docker-compose logs -f
+
+# 3. Access services
+# - User Service: http://localhost:8001/docs
+# - Product Service: http://localhost:8002/docs
+# - Order Service: http://localhost:8003/docs
+# - Notification Service: http://localhost:8004/docs
+# - RabbitMQ UI: http://localhost:15672 (guest/guest)
+
+# 4. Monitor Redis
+docker exec -it redis-cache redis-cli
+> KEYS *
+> GET product:1
+> TTL product:1
+
+# 5. Check RabbitMQ
+# Visit http://localhost:15672
+# - Check exchange: order_events
+# - Check queue: order_notifications
+# - Monitor message rates
+```
 
 ---
 
