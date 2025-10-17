@@ -96,10 +96,10 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Log in to Docker Hub
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
       uses: docker/login-action@v3
       with:
-        username: ${{ secrets.DOCKER_USERNAME }}
+        username: ${{ vars.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
     
     - name: Extract metadata
@@ -108,7 +108,7 @@ jobs:
       with:
         images: |
           ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
-          ${{ secrets.DOCKER_USERNAME }}/python-micro-${{ matrix.service }}
+          ${{ vars.DOCKER_USERNAME }}/python-micro-${{ matrix.service }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr
@@ -149,7 +149,7 @@ jobs:
     
     - name: Start services with Docker Compose
       run: |
-        docker-compose up -d
+        docker compose up -d
         sleep 30
     
     - name: Check service health
@@ -165,7 +165,7 @@ jobs:
             fi
             if [ $i -eq 30 ]; then
               echo "$name failed to become healthy"
-              docker-compose logs $name
+              docker compose logs $name
               exit 1
             fi
             sleep 2
@@ -201,8 +201,8 @@ jobs:
     
     - name: Show logs on failure
       if: failure()
-      run: docker-compose logs
+      run: docker compose logs
     
     - name: Stop services
       if: always()
-      run: docker-compose down -v
+      run: docker compose down -v
