@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # PostgreSQL for User Service
+  user-db:
+    image: postgres:15-alpine
+    container_name: user-service-db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: user_service_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - user-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL for Product Service
+  product-db:
+    image: postgres:15-alpine
+    container_name: product-service-db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: product_service_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - product-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # User Service
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    environment:
+      DATABASE_URL: postgresql://user:password@user-db:5432/user_service_db
+      SECRET_KEY: your-secret-key-change-this-in-production-min-32-characters
+      PORT: 8001
+    ports:
+      - "8001:8001"
+    depends_on:
+      user-db:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Product Service
+  product-service:
+    build:
+      context: ./product-service
+      dockerfile: Dockerfile
+    container_name: product-service
+    environment:
+      DATABASE_URL: postgresql://user:password@product-db:5432/product_service_db
+      USER_SERVICE_URL: http://user-service:8001
+      PORT: 8002
+    ports:
+      - "8002:8002"
+    depends_on:
+      product-db:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8002"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  user-db-data:
+  product-db-data:
