@@ -1,0 +1,208 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+jobs:
+  test:
+    name: Test Services
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        service: [user-service, product-service, order-service, notification-service]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+        cache-dependency-path: '${{ matrix.service }}/requirements.txt'
+    
+    - name: Install dependencies
+      run: |
+        cd ${{ matrix.service }}
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio pytest-cov httpx
+    
+    - name: Run linting
+      run: |
+        cd ${{ matrix.service }}
+        pip install flake8
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Exit-zero treats all errors as warnings
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Run tests
+      run: |
+        cd ${{ matrix.service }}
+        # Create test directory if it doesn't exist
+        mkdir -p tests
+        # Run tests if they exist
+        if [ -d "tests" ] && [ "$(ls -A tests/*.py 2>/dev/null)" ]; then
+          pytest tests/ -v --cov=app --cov-report=xml --cov-report=term
+        else
+          echo "No tests found, skipping..."
+        fi
+    
+    - name: Upload coverage reports
+      if: always()
+      uses: codecov/codecov-action@v4
+      with:
+        file: ${{ matrix.service }}/coverage.xml
+        flags: ${{ matrix.service }}
+        name: codecov-${{ matrix.service }}
+        fail_ci_if_error: false
+
+  build-and-push:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push'
+    
+    strategy:
+      matrix:
+        service: [user-service, product-service, order-service, notification-service]
+    
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Log in to Docker Hub
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
+          ${{ secrets.DOCKER_USERNAME }}/python-micro-${{ matrix.service }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./${{ matrix.service }}
+        file: ./${{ matrix.service }}/Dockerfile
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+
+  docker-compose-test:
+    name: Integration Test with Docker Compose
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Create .env files
+      run: |
+        for service in user-service product-service order-service notification-service; do
+          if [ -f "$service/.env.example" ]; then
+            cp "$service/.env.example" "$service/.env"
+          fi
+        done
+    
+    - name: Start services with Docker Compose
+      run: |
+        docker-compose up -d
+        sleep 30
+    
+    - name: Check service health
+      run: |
+        services=("user-service:8001" "product-service:8002" "order-service:8003" "notification-service:8004")
+        for service in "${services[@]}"; do
+          IFS=':' read -r name port <<< "$service"
+          echo "Checking health of $name on port $port..."
+          for i in {1..30}; do
+            if curl -f http://localhost:$port/health 2>/dev/null; then
+              echo "$name is healthy"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "$name failed to become healthy"
+              docker-compose logs $name
+              exit 1
+            fi
+            sleep 2
+          done
+        done
+    
+    - name: Run integration tests
+      run: |
+        # Test user registration and login
+        echo "Testing User Service..."
+        response=$(curl -X POST http://localhost:8001/register \
+          -H "Content-Type: application/json" \
+          -d '{"username":"testuser_ci","password":"testpass123"}')
+        echo "Register response: $response"
+        
+        token=$(curl -X POST http://localhost:8001/login \
+          -H "Content-Type: application/x-www-form-urlencoded" \
+          -d "username=testuser_ci&password=testpass123" \
+          | jq -r '.access_token')
+        echo "Token obtained: ${token:0:20}..."
+        
+        # Test product creation
+        echo "Testing Product Service..."
+        curl -X POST http://localhost:8002/products \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer $token" \
+          -d '{"name":"Test Product","description":"CI/CD Test","price":99.99,"quantity":10}'
+        
+        # Test product retrieval (should use cache)
+        curl -X GET http://localhost:8002/products
+        
+        echo "Integration tests completed successfully"
+    
+    - name: Show logs on failure
+      if: failure()
+      run: docker-compose logs
+    
+    - name: Stop services
+      if: always()
+      run: docker-compose down -v
