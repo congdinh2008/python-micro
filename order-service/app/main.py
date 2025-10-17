@@ -6,10 +6,12 @@ Microservice for order management with RabbitMQ integration
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.config import settings
 from app.api import orders
 from app.utils.rabbitmq import rabbitmq_publisher
+from app.utils.tracing import setup_tracing
 
 # Configure logging
 logging.basicConfig(
@@ -57,6 +59,12 @@ app.add_middleware(
 
 # Include routers
 app.include_router(orders.router)
+
+# Setup Prometheus metrics
+Instrumentator().instrument(app).expose(app)
+
+# Setup OpenTelemetry tracing
+setup_tracing(app, service_name=settings.APP_NAME, service_version=settings.APP_VERSION)
 
 
 @app.get(

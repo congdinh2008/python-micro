@@ -5,9 +5,11 @@ Microservice for product management with authentication via User Service
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.config import settings
 from app.api import products
+from app.utils.tracing import setup_tracing
 
 # Create FastAPI application
 app = FastAPI(
@@ -47,6 +49,12 @@ app.add_middleware(
 
 # Include routers
 app.include_router(products.router)
+
+# Setup Prometheus metrics
+Instrumentator().instrument(app).expose(app)
+
+# Setup OpenTelemetry tracing
+setup_tracing(app, service_name=settings.APP_NAME, service_version=settings.APP_VERSION)
 
 
 @app.get(
