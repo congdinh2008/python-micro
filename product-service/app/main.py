@@ -78,11 +78,20 @@ def health_check():
     """
     Health check endpoint
     """
+    from app.utils.cache import cache_manager
+    
+    redis_status = "healthy" if cache_manager.healthcheck() else "unavailable"
+    
     return {
         "status": "healthy",
         "service": settings.APP_NAME,
         "version": settings.APP_VERSION,
         "user_service_url": settings.USER_SERVICE_URL,
+        "redis": {
+            "status": redis_status,
+            "host": settings.REDIS_HOST,
+            "port": settings.REDIS_PORT,
+        },
     }
 
 

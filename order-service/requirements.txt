@@ -1,4 +1,4 @@
-# Product Service - FastAPI Microservice
+# Order Service - FastAPI Microservice
 # Python version: 3.9+
 
 # Core Framework
@@ -18,5 +18,5 @@ httpx>=0.26.0
 # Security (OAuth2 scheme only, no JWT decoding)
 python-multipart>=0.0.6
 
-# Redis Cache
-redis>=5.0.0
+# RabbitMQ
+aio-pika>=9.3.0
