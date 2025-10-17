@@ -5,7 +5,12 @@
 ### Prerequisites
 - Docker & Docker Compose installed
 - 8GB RAM available
-- Ports 3000, 8001-8004, 9090, 16686 free
+- jq (for JSON parsing) - Install: `sudo apt install jq` or `brew install jq`
+- Required ports available:
+  - Application: 8001-8004
+  - Databases: 5433-5435
+  - Infrastructure: 6379 (Redis), 5672/15672 (RabbitMQ)
+  - Observability: 3000 (Grafana), 3100 (Loki), 9090 (Prometheus), 16686 (Jaeger)
 
 ### Step 1: Start Services (2 minutes)
 
@@ -32,10 +37,17 @@ curl -X POST http://localhost:8001/register \
   -d '{"username":"demo","password":"demo123"}'
 
 # 2. Login and get token
+# Option 1: With jq (recommended)
 TOKEN=$(curl -X POST http://localhost:8001/login \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "username=demo&password=demo123" \
   | jq -r '.access_token')
+
+# Option 2: Without jq (copy token manually)
+# curl -X POST http://localhost:8001/login \
+#   -H "Content-Type: application/x-www-form-urlencoded" \
+#   -d "username=demo&password=demo123"
+# Then set: TOKEN="<your_token_here>"
 
 echo "Token: $TOKEN"
 
@@ -148,7 +160,10 @@ curl -X POST http://localhost:8003/orders \
   -d '{"product_id":1,"quantity":1}'
 
 # Check RabbitMQ Management UI
-open http://localhost:15672  # guest/guest
+# Open in browser: http://localhost:15672 (guest/guest)
+# Linux: xdg-open http://localhost:15672
+# macOS: open http://localhost:15672
+# Windows: start http://localhost:15672
 
 # View message flow in:
 # - Exchanges → order_events
@@ -163,8 +178,8 @@ for i in {1..10}; do
 done
 
 # View in Jaeger
-open http://localhost:16686
-# Select "Product Service" → Find Traces
+# Open in browser: http://localhost:16686
+# Then: Select "Product Service" → Find Traces
 # Click on any trace to see:
 # - Service dependencies
 # - Database queries
