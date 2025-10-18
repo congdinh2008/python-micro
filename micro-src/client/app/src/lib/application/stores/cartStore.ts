@@ -34,7 +34,7 @@ function createCartStore() {
 		error: null
 	};
 
-	const { subscribe, set, update } = writable<CartStoreState>(initialState);
+	const { subscribe, update } = writable<CartStoreState>(initialState);
 
 	// Initialize repository and use cases
 	const cartRepository = new CartRepository();

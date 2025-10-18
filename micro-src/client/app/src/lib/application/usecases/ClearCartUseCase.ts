@@ -17,9 +17,6 @@ export class ClearCartUseCase {
 	 */
 	async execute(): Promise<CartOperationResult> {
 		try {
-			// Get all items before clearing (for undo support if needed)
-			const items = await this.cartRepository.getAll();
-
 			// Clear the cart
 			await this.cartRepository.clear();
 
