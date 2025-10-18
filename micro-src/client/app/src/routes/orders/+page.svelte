@@ -38,8 +38,8 @@
 
 	/**
 	 * Track the current filter request to prevent race conditions
-	 * Using a counter is safe for this use case as it would take millions of years
-	 * of continuous filtering to reach overflow at human interaction speeds
+	 * Using a counter is safe as JavaScript's Number.MAX_SAFE_INTEGER (2^53 - 1)
+	 * provides sufficient range for user interactions
 	 */
 	let currentRequestId = 0;
 
