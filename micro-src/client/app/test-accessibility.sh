@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# test-accessibility.sh
+# Comprehensive accessibility and responsive design testing guide
+# Provides automated checks and manual testing instructions for WCAG 2.1 AA compliance
+
 # Responsive Design and Accessibility Test Script
 # This script provides guidance on testing responsive design and accessibility features
 
@@ -150,9 +154,9 @@ if [ -f "package.json" ]; then
   # Run tests
   echo ""
   echo "Running test suite..."
-  npm run test 2>&1 | grep -E "(Test Files|Tests|PASS|FAIL)"
+  npm run test
   
-  TEST_EXIT_CODE=${PIPESTATUS[0]}
+  TEST_EXIT_CODE=$?
   
   if [ $TEST_EXIT_CODE -eq 0 ]; then
     echo ""

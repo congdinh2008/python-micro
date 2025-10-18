@@ -43,7 +43,7 @@ uiStore.showToast({
   type: 'success',
   message: 'Custom message',
   title: 'Custom Title',
-  duration: 10000, // 10 seconds
+  duration: 10000, // Duration in milliseconds (10 seconds)
   dismissible: true
 });
 ```

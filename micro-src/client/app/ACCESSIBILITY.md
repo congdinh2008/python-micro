@@ -77,11 +77,16 @@ All interactive elements are keyboard accessible:
 
 #### Focus Styles
 ```css
-*:focus-visible {
+/* Using Tailwind utilities */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+}
+
+/* Compiled CSS equivalent */
+.focus-ring:focus {
   outline: none;
-  ring: 2px solid theme('colors.primary.500');
-  ring-offset: 2px;
-  border-radius: theme('borderRadius.DEFAULT');
+  box-shadow: 0 0 0 2px white, 0 0 0 4px #3b82f6;
+  border-radius: 0.25rem;
 }
 ```
 
