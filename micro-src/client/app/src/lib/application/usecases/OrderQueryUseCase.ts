@@ -5,7 +5,9 @@
 
 import type { IOrderRepository } from '$lib/domain/interfaces/IOrderRepository';
 import type { Order } from '$lib/domain/entities/Order';
+import type { OrderHistoryFilters } from '$lib/domain/dto/OrderHistoryFilters';
 import { ApiError } from '$lib/infrastructure/api/apiClient';
+import { validateOrderFilters } from '$lib/domain/validation/orderFilterSchema';
 
 /**
  * Order query result
@@ -24,14 +26,33 @@ export class OrderQueryUseCase {
 	constructor(private orderRepository: IOrderRepository) {}
 
 	/**
-	 * Get all orders for current user
+	 * Get all orders for current user with optional filters
 	 */
-	async getAll(skip: number = 0, limit: number = 20): Promise<OrderQueryResult> {
+	async getAll(filters?: OrderHistoryFilters): Promise<OrderQueryResult> {
 		try {
-			const orders = await this.orderRepository.getAll(skip, limit);
+			// Validate filters if provided
+			if (filters) {
+				const validation = validateOrderFilters(filters);
+				if (!validation.success) {
+					return {
+						success: false,
+						error: `Invalid filters: ${validation.errors.join(', ')}`
+					};
+				}
+				// Use validated filters
+				filters = validation.data;
+			}
+
+			const orders = await this.orderRepository.getAll(filters);
+
+			// Sort by created_at descending (newest first)
+			const sortedOrders = orders.sort((a, b) => {
+				return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+			});
+
 			return {
 				success: true,
-				orders
+				orders: sortedOrders
 			};
 		} catch (error) {
 			console.error('Error fetching orders:', error);

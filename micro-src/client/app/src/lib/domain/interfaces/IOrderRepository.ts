@@ -4,6 +4,7 @@
  */
 
 import type { Order, OrderCreateRequest } from '../entities/Order';
+import type { OrderHistoryFilters } from '../dto/OrderHistoryFilters';
 
 /**
  * Order repository interface defining contract for order data operations
@@ -24,12 +25,11 @@ export interface IOrderRepository {
 	getById(id: number): Promise<Order | null>;
 
 	/**
-	 * Get all orders for current user
-	 * @param skip - Number of records to skip (pagination)
-	 * @param limit - Number of records to return
+	 * Get all orders for current user with optional filters
+	 * @param filters - Optional filters for status, date range, and pagination
 	 * @returns List of orders
 	 */
-	getAll(skip?: number, limit?: number): Promise<Order[]>;
+	getAll(filters?: OrderHistoryFilters): Promise<Order[]>;
 
 	/**
 	 * Update order status

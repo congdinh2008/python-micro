@@ -5,6 +5,7 @@
 
 import type { IOrderRepository } from '$lib/domain/interfaces/IOrderRepository';
 import type { Order, OrderCreateRequest } from '$lib/domain/entities/Order';
+import type { OrderHistoryFilters } from '$lib/domain/dto/OrderHistoryFilters';
 import { orderServiceApi } from '../api/apiClient';
 
 /**
@@ -38,20 +39,61 @@ export class OrderRepository implements IOrderRepository {
 	}
 
 	/**
-	 * Get all orders for current user
+	 * Get all orders for current user with optional filters
 	 */
-	async getAll(skip: number = 0, limit: number = 20): Promise<Order[]> {
+	async getAll(filters?: OrderHistoryFilters): Promise<Order[]> {
 		try {
 			const params = new URLSearchParams();
+
+			// Add pagination parameters
+			const skip = filters?.skip ?? 0;
+			const limit = filters?.limit ?? 20;
 			params.append('skip', skip.toString());
 			params.append('limit', limit.toString());
 
+			// Note: Backend currently doesn't support status and date filtering
+			// These will be applied client-side in the use case layer
+			// When backend adds support, uncomment:
+			// if (filters?.status) {
+			//   params.append('status', filters.status);
+			// }
+			// if (filters?.dateRange) {
+			//   params.append('start_date', filters.dateRange[0]);
+			//   params.append('end_date', filters.dateRange[1]);
+			// }
+
 			const orders = await orderServiceApi.get<Order[]>(`/orders?${params.toString()}`);
-			return orders;
+
+			// Client-side filtering until backend supports it
+			return this.applyClientSideFilters(orders, filters);
 		} catch (error) {
 			console.error('Error fetching orders:', error);
 			return [];
 		}
+	}
+
+	/**
+	 * Apply client-side filters to orders
+	 * This is a temporary solution until backend supports filtering
+	 */
+	private applyClientSideFilters(orders: Order[], filters?: OrderHistoryFilters): Order[] {
+		let filtered = orders;
+
+		// Filter by status
+		if (filters?.status) {
+			filtered = filtered.filter((order) => order.status === filters.status);
+		}
+
+		// Filter by date range
+		if (filters?.dateRange) {
+			const [startDate, endDate] = filters.dateRange.map((d) => new Date(d));
+			filtered = filtered.filter((order) => {
+				const orderDate = new Date(order.created_at);
+				return orderDate >= startDate && orderDate <= endDate;
+			});
+		}
+
+		return filtered;
 	}
 
 	/**
