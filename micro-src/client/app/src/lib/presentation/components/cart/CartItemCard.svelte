@@ -10,6 +10,7 @@
 	export let onUpdateQuantity: ((productId: number, quantity: number) => void) | undefined =
 		undefined;
 	export let onRemove: ((productId: number) => void) | undefined = undefined;
+	export let readonly: boolean = false;
 
 	let quantity = item.quantity;
 
@@ -65,37 +66,44 @@
 	</div>
 
 	<!-- Quantity Controls -->
-	<div class="quantity-controls">
-		<label for="quantity-{item.productId}" class="sr-only">
-			Quantity for {item.name}
-		</label>
-		<button
-			class="quantity-btn"
-			onclick={decrement}
-			disabled={quantity <= 1}
-			aria-label="Decrease quantity"
-		>
-			-
-		</button>
-		<input
-			id="quantity-{item.productId}"
-			type="number"
-			class="quantity-input"
-			bind:value={quantity}
-			onchange={() => handleQuantityChange(quantity)}
-			min="1"
-			max={item.maxStock}
-			aria-label="Quantity"
-		/>
-		<button
-			class="quantity-btn"
-			onclick={increment}
-			disabled={isMaxStock}
-			aria-label="Increase quantity"
-		>
-			+
-		</button>
-	</div>
+	{#if !readonly}
+		<div class="quantity-controls">
+			<label for="quantity-{item.productId}" class="sr-only">
+				Quantity for {item.name}
+			</label>
+			<button
+				class="quantity-btn"
+				onclick={decrement}
+				disabled={quantity <= 1}
+				aria-label="Decrease quantity"
+			>
+				-
+			</button>
+			<input
+				id="quantity-{item.productId}"
+				type="number"
+				class="quantity-input"
+				bind:value={quantity}
+				onchange={() => handleQuantityChange(quantity)}
+				min="1"
+				max={item.maxStock}
+				aria-label="Quantity"
+			/>
+			<button
+				class="quantity-btn"
+				onclick={increment}
+				disabled={isMaxStock}
+				aria-label="Increase quantity"
+			>
+				+
+			</button>
+		</div>
+	{:else}
+		<div class="quantity-display">
+			<span class="quantity-label">Qty:</span>
+			<span class="quantity-value">{item.quantity}</span>
+		</div>
+	{/if}
 
 	<!-- Total Price -->
 	<div class="item-total">
@@ -104,22 +112,24 @@
 	</div>
 
 	<!-- Remove Button -->
-	<button class="remove-btn" onclick={handleRemove} aria-label="Remove {item.name} from cart">
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			fill="none"
-			viewBox="0 0 24 24"
-			stroke="currentColor"
-			aria-hidden="true"
-		>
-			<path
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				stroke-width="2"
-				d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-			/>
-		</svg>
-	</button>
+	{#if !readonly}
+		<button class="remove-btn" onclick={handleRemove} aria-label="Remove {item.name} from cart">
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				fill="none"
+				viewBox="0 0 24 24"
+				stroke="currentColor"
+				aria-hidden="true"
+			>
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+				/>
+			</svg>
+		</button>
+	{/if}
 </article>
 
 <style>
@@ -228,6 +238,26 @@
 		outline: 2px solid #2563eb;
 		outline-offset: 2px;
 		border-radius: 0.25rem;
+	}
+
+	.quantity-display {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 1rem;
+		background: #f9fafb;
+		border-radius: 0.375rem;
+	}
+
+	.quantity-label {
+		font-size: 0.875rem;
+		color: #6b7280;
+	}
+
+	.quantity-value {
+		font-size: 0.875rem;
+		font-weight: 600;
+		color: #111827;
 	}
 
 	.item-total {
