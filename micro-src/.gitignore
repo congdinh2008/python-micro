@@ -1,3 +1,23 @@
+# ==============================================================================
+# Python Microservices E-Commerce Platform - Git Ignore
+# ==============================================================================
+
+# ==============================================================================
+# Environment Variables & Secrets
+# ==============================================================================
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+*.env
+!.env.example
+
+# Database backups
+backups/
+*.sql
+*.dump
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

@@ -1,139 +1,127 @@
 # 🚀 Python Microservices E-Commerce Platform
 
-[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![CI/CD Pipeline](https://github.com/congdinh2008/python-micro/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/congdinh2008/python-micro/actions/workflows/ci-cd.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com/)
-[![Docker](https://img.shields.io/badge/Docker-24+-blue.svg)](https://www.docker.com/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)](https://www.postgresql.org/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/Docker-ready-blue.svg)](https://www.docker.com/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-A production-ready microservices architecture for e-commerce applications, built with **FastAPI**, **PostgreSQL**, **Redis**, **RabbitMQ**, and comprehensive observability stack.
+> **Production-ready microservices architecture** demonstrating modern software design patterns, DevOps practices, and complete observability stack.
 
 ---
 
-## 📖 Table of Contents
+## 📋 Table of Contents
 
 - [Overview](#-overview)
 - [Architecture](#-architecture)
 - [Features](#-features)
+- [Tech Stack](#-tech-stack)
 - [Quick Start](#-quick-start)
+- [Project Structure](#-project-structure)
 - [Services](#-services)
-- [Technology Stack](#-technology-stack)
-- [Documentation](#-documentation)
+- [Observability](#-observability)
 - [Development](#-development)
+- [Testing](#-testing)
 - [Deployment](#-deployment)
-- [Monitoring](#-monitoring)
+- [Contributing](#-contributing)
+- [License](#-license)
 
 ---
 
 ## 🎯 Overview
 
-This project demonstrates a **complete microservices architecture** with 4 independent services, implementing industry best practices:
+This project is a **comprehensive microservices e-commerce platform** built with Python, showcasing:
 
-- ✅ **Clean Architecture** with Repository Pattern
-- ✅ **Event-Driven Architecture** with RabbitMQ
-- ✅ **Distributed Tracing** with OpenTelemetry & Jaeger
-- ✅ **Centralized Logging** with Loki & Promtail
-- ✅ **Metrics & Monitoring** with Prometheus & Grafana
-- ✅ **API Gateway Pattern** with JWT authentication
-- ✅ **Cache Strategy** with Redis
-- ✅ **Database per Service** pattern
-- ✅ **Docker Containerization** & Orchestration
+- ✅ **4 Independent Microservices** with clean architecture
+- ✅ **Complete Observability Stack** (Prometheus, Grafana, Loki, Jaeger)
+- ✅ **Event-Driven Architecture** using RabbitMQ
+- ✅ **Caching Strategy** with Redis
+- ✅ **Database per Service** pattern with PostgreSQL
+- ✅ **Containerized Deployment** with Docker Compose
+- ✅ **CI/CD Pipeline** with GitHub Actions
+- ✅ **API Documentation** with Swagger/OpenAPI
 
 ---
 
 ## 🏗️ Architecture
 
-### System Overview
+```
+┌─────────────────┐
+│   Client/UI     │
+│   (Svelte)      │
+└────────┬────────┘
+         │
+    ┌────▼────────────────────────────────┐
+    │      API Gateway (Future)           │
+    └────┬────────────────────────────────┘
+         │
+    ┌────▼────────┬──────────┬──────────┬──────────┐
+    │             │          │          │          │
+┌───▼───┐   ┌────▼───┐ ┌────▼────┐ ┌───▼──────┐  │
+│ User  │   │Product │ │ Order   │ │Notification│
+│Service│   │Service │ │ Service │ │  Service  │
+└───┬───┘   └────┬───┘ └────┬────┘ └───┬──────┘  │
+    │            │          │           │         │
+┌───▼───┐   ┌────▼───┐ ┌────▼────┐ ┌───▼──────┐  │
+│UserDB │   │ProdDB  │ │OrderDB  │ │ RabbitMQ │  │
+└───────┘   └────┬───┘ └─────────┘ └──────────┘  │
+                 │                                 │
+            ┌────▼────┐                            │
+            │  Redis  │◄───────────────────────────┘
+            └─────────┘
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         Client Layer                         │
-└──────────────┬─────────────────┬─────────────────┬──────────┘
-               │                 │                 │
-               ▼                 ▼                 ▼
-         ┌──────────┐      ┌──────────┐     ┌──────────┐
-         │  User    │◄─────│ Product  │◄────│  Order   │
-         │ Service  │      │ Service  │     │ Service  │
-         │  :8001   │      │  :8002   │     │  :8003   │
-         └────┬─────┘      └────┬─────┘     └────┬─────┘
-              │                 │                 │
-              │           ┌─────▼─────┐           │
-              │           │   Redis   │           │
-              │           └───────────┘           │
-              ▼                                   ▼
-         ┌─────────┐                       ┌──────────────┐
-         │User DB  │                       │   RabbitMQ   │
-         └─────────┘                       └──────┬───────┘
-                                                  │
-         ┌─────────┐                              ▼
-         │Product  │                    ┌────────────────┐
-         │   DB    │                    │ Notification   │
-         └─────────┘                    │   Service      │
-                                        │    :8004       │
-         ┌─────────┐                    └────────────────┘
-         │Order DB │
-         └─────────┘                    ┌────────────────┐
-                                        │ Observability  │
-         ┌──────────────────────────────┤                │
-         │ Prometheus │ Grafana │ Loki  │ • Metrics      │
-         │ Jaeger │ Promtail           │ • Logs         │
-         └────────────────────────────────┤ • Traces       │
-                                        └────────────────┘
-```
-
-### Communication Flow
-
-**1. Authentication:**
-```
-Client → User Service → JWT Token → Client
-```
-
-**2. Product Flow (with Cache):**
-```
-Client → Product Service → Redis Cache → PostgreSQL
-                         ↓
-                 User Service (Token Validation)
-```
-
-**3. Order Flow (Event-Driven):**
-```
-Client → Order Service → PostgreSQL
-                       ↓
-               Product Service (Validation)
-                       ↓
-               User Service (Auth)
-                       ↓
-               RabbitMQ (order.created)
-                       ↓
-               Notification Service
+    Observability Stack:
+    ┌─────────────────────────────────────┐
+    │ Prometheus → Grafana → Loki → Jaeger│
+    └─────────────────────────────────────┘
 ```
 
 ---
 
 ## ✨ Features
 
-### 🔐 User Service (Port 8001)
-- User registration and authentication
-- JWT token generation and validation
-- Password hashing with bcrypt
-- Token validation endpoint for other services
+### Core Functionality
+- 👤 **User Management**: Registration, authentication with JWT
+- 📦 **Product Catalog**: CRUD operations with caching
+- 🛒 **Order Processing**: Order creation with inventory management
+- 📧 **Notifications**: Async event-driven notifications
 
-### 📦 Product Service (Port 8002)
-- Complete product CRUD operations
-- Redis caching for performance
-- Cache invalidation strategy
-- JWT authentication
+### Technical Features
+- 🔐 **Security**: JWT authentication, password hashing with bcrypt
+- 💾 **Caching**: Redis cache-aside pattern (300s TTL)
+- 📨 **Messaging**: RabbitMQ for async communication
+- 🗄️ **Database**: PostgreSQL with Alembic migrations
+- 📊 **Monitoring**: Metrics, logs, and distributed tracing
+- 🔍 **Health Checks**: Comprehensive health endpoints
+- 📖 **API Docs**: Auto-generated Swagger UI
 
-### 🛒 Order Service (Port 8003)
-- Order creation and management
-- Product validation
-- User authentication
-- Event publishing to RabbitMQ
+---
 
-### 📧 Notification Service (Port 8004)
-- Async message processing
-- Email/SMS/Push notifications
-- Event-driven architecture
+## 🛠️ Tech Stack
+
+### Backend
+- **Framework**: [FastAPI](https://fastapi.tiangolo.com/) 0.104+
+- **Language**: Python 3.11+
+- **ORM**: SQLAlchemy 2.0
+- **Migrations**: Alembic
+- **Validation**: Pydantic
+
+### Infrastructure
+- **Databases**: PostgreSQL 15
+- **Cache**: Redis 7
+- **Message Broker**: RabbitMQ 3
+- **Containerization**: Docker & Docker Compose
+
+### Observability
+- **Metrics**: Prometheus + Redis Exporter
+- **Visualization**: Grafana 10
+- **Logging**: Loki + Promtail
+- **Tracing**: Jaeger + OpenTelemetry
+
+### DevOps
+- **CI/CD**: GitHub Actions
+- **Container Registry**: GHCR, Docker Hub
 
 ---
 
@@ -141,292 +129,315 @@ Client → Order Service → PostgreSQL
 
 ### Prerequisites
 
-- Docker Desktop (24.0+)
-- Docker Compose (2.0+)
+- Docker Desktop 4.0+
+- Docker Compose 2.0+
+- Python 3.11+ (for local development)
 - Git
 
 ### Installation
 
+1. **Clone the repository**
 ```bash
-# 1. Clone repository
 git clone https://github.com/congdinh2008/python-micro.git
-cd python-micro
-
-# 2. Start all services
-docker compose up -d
-
-# 3. Wait for health checks (30-60 seconds)
-docker compose ps
-
-# 4. Verify services
-curl http://localhost:8001/health  # User Service
-curl http://localhost:8002/health  # Product Service
-curl http://localhost:8003/health  # Order Service
-curl http://localhost:8004/health  # Notification Service
+cd python-micro/micro-src
 ```
 
-### First API Calls
+2. **Configure environment**
+```bash
+cp .env.example .env
+# Edit .env if needed
+```
+
+3. **Start all services**
+```bash
+docker compose up -d
+```
+
+4. **Wait for services to be ready** (30-60 seconds)
+```bash
+docker compose ps
+```
+
+5. **Access the services**
+- User Service: http://localhost:8001/docs
+- Product Service: http://localhost:8002/docs
+- Order Service: http://localhost:8003/docs
+- Notification Service: http://localhost:8004/docs
+- Grafana: http://localhost:3000 (admin/admin)
+- Prometheus: http://localhost:9090
+- Jaeger: http://localhost:16686
+- RabbitMQ: http://localhost:15672 (guest/guest)
+
+### Quick Test
 
 ```bash
-# 1. Register user
+# Register a user
 curl -X POST http://localhost:8001/register \
   -H "Content-Type: application/json" \
-  -d '{"username":"demo","email":"demo@example.com","password":"Demo@123"}'
+  -d '{"username":"testuser","password":"Test@123"}'
 
-# 2. Login (get JWT token)
+# Login
 curl -X POST http://localhost:8001/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"demo","password":"Demo@123"}'
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=testuser&password=Test@123"
+```
 
-# 3. Create product (use token from step 2)
-curl -X POST http://localhost:8002/products \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Laptop","description":"High-end laptop","price":1299.99,"stock":10}'
+---
 
-# 4. Create order
-curl -X POST http://localhost:8003/orders \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"product_id":1,"quantity":1}'
+## 📁 Project Structure
+
+```
+python-micro/
+├── .github/
+│   └── workflows/
+│       └── ci-cd.yml          # CI/CD pipeline
+├── micro-src/                 # Microservices implementation
+│   ├── server/
+│   │   ├── user-service/      # Authentication service
+│   │   ├── product-service/   # Product catalog service
+│   │   ├── order-service/     # Order management service
+│   │   └── notification-service/ # Notification service
+│   ├── deployment/
+│   │   ├── observability/     # Monitoring configs
+│   │   └── scripts/           # Deployment scripts
+│   ├── docker-compose.yml     # Orchestration
+│   └── .env.example           # Environment template
+├── mono-src/                  # Monolithic version (reference)
+├── cli-src/                   # CLI version (reference)
+└── docs/                      # Documentation
 ```
 
 ---
 
 ## 🔧 Services
 
-### Microservices
+### 1. User Service (Port 8001)
+- User registration and authentication
+- JWT token generation and validation
+- Password hashing with bcrypt
 
-| Service | Port | Health Check | API Docs |
-|---------|------|--------------|----------|
-| User Service | 8001 | http://localhost:8001/health | http://localhost:8001/docs |
-| Product Service | 8002 | http://localhost:8002/health | http://localhost:8002/docs |
-| Order Service | 8003 | http://localhost:8003/health | http://localhost:8003/docs |
-| Notification Service | 8004 | http://localhost:8004/health | http://localhost:8004/docs |
+**Endpoints:**
+- `POST /register` - Register new user
+- `POST /login` - Authenticate user
+- `POST /validate-token` - Validate JWT token
+- `GET /health` - Health check
 
-### Infrastructure
+### 2. Product Service (Port 8002)
+- Product CRUD operations
+- Redis caching (Cache-aside pattern)
+- Authentication via User Service
 
-| Service | Port | Access |
-|---------|------|--------|
-| PostgreSQL (User) | 5433 | localhost:5433 |
-| PostgreSQL (Product) | 5434 | localhost:5434 |
-| PostgreSQL (Order) | 5435 | localhost:5435 |
-| Redis Cache | 6379 | localhost:6379 |
-| RabbitMQ | 15672 | http://localhost:15672 (guest/guest) |
-| Prometheus | 9090 | http://localhost:9090 |
-| Grafana | 3000 | http://localhost:3000 (admin/admin) |
-| Jaeger | 16686 | http://localhost:16686 |
-| Loki | 3100 | http://localhost:3100 |
+**Endpoints:**
+- `GET /products` - List all products
+- `GET /products/{id}` - Get product by ID
+- `POST /products` - Create product (auth required)
+- `PUT /products/{id}` - Update product (auth required)
+- `DELETE /products/{id}` - Delete product (auth required)
+- `GET /health` - Health check
 
----
+### 3. Order Service (Port 8003)
+- Order creation and management
+- Product validation via Product Service
+- Event publishing to RabbitMQ
 
-## 💻 Technology Stack
+**Endpoints:**
+- `GET /orders` - List user orders (auth required)
+- `GET /orders/{id}` - Get order by ID (auth required)
+- `POST /orders` - Create order (auth required)
+- `GET /health` - Health check
 
-### Backend Framework
-- **FastAPI** - Modern Python web framework
-- **SQLAlchemy 2.0** - ORM for database operations
-- **Alembic** - Database migration tool
-- **Pydantic** - Data validation
+### 4. Notification Service (Port 8004)
+- Async event consumption from RabbitMQ
+- Email/SMS/Push notification handling
+- Event-driven architecture
 
-### Databases & Cache
-- **PostgreSQL 15** - Primary database (3 instances)
-- **Redis 7** - Caching layer
-
-### Messaging
-- **RabbitMQ 3** - Message queue
-
-### Observability
-- **Prometheus** - Metrics collection
-- **Grafana** - Visualization
-- **Loki** - Log aggregation
-- **Promtail** - Log collector
-- **Jaeger** - Distributed tracing
-- **OpenTelemetry** - Observability framework
-
-### DevOps
-- **Docker** - Containerization
-- **Docker Compose** - Orchestration
+**Endpoints:**
+- `GET /health` - Health check
 
 ---
 
-## 📚 Documentation
+## 📊 Observability
 
-| Document | Description |
-|----------|-------------|
-| [QUICKSTART.md](./QUICKSTART.md) | Step-by-step guide |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | System architecture details |
-| [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) | Production deployment |
-| [DEVOPS_README.md](./DEVOPS_README.md) | Observability setup |
-| [TESTING.md](./TESTING.md) | Testing guide |
-| [CORS_CONFIGURATION.md](./CORS_CONFIGURATION.md) | CORS setup |
-| [CHANGELOG.md](./CHANGELOG.md) | Version history |
+### Metrics (Prometheus)
+- Service-level metrics (requests, latency, errors)
+- Infrastructure metrics (CPU, memory, disk)
+- Custom business metrics
+
+**Access**: http://localhost:9090
+
+### Dashboards (Grafana)
+- Pre-configured dashboards for all services
+- Real-time monitoring
+- Alerting configuration
+
+**Access**: http://localhost:3000 (admin/admin)
+
+### Logs (Loki)
+- Centralized log aggregation
+- Searchable and filterable
+- Correlated with metrics
+
+**Query via Grafana**: http://localhost:3000
+
+### Tracing (Jaeger)
+- Distributed request tracing
+- Service dependency mapping
+- Performance bottleneck identification
+
+**Access**: http://localhost:16686
 
 ---
 
-## 🛠️ Development
+## 💻 Development
 
-### Project Structure
+### Local Development Setup
 
-```
-python-micro/
-├── user-service/           # Authentication service
-├── product-service/        # Product catalog
-├── order-service/          # Order processing
-├── notification-service/   # Async notifications
-├── observability/          # Monitoring configs
-├── docker-compose.yml      # Orchestration
-└── README.md              # This file
-```
-
-### Environment Setup
-
+1. **Install dependencies**
 ```bash
-# Development (default "*" CORS)
-cp .env.development.example .env
-
-# Production (specific origins)
-cp .env.production.example .env
-```
-
-### Run Locally
-
-```bash
-# Individual service
-cd user-service
+cd micro-src/server/user-service
 python -m venv venv
-source venv/bin/activate
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
+```
+
+2. **Run database migrations**
+```bash
 alembic upgrade head
+```
+
+3. **Start the service**
+```bash
 uvicorn app.main:app --reload --port 8001
 ```
 
-### Database Migrations
+### Code Style
 
 ```bash
-# Create migration
-cd user-service
-alembic revision --autogenerate -m "description"
+# Format code
+black .
 
-# Apply migration
-alembic upgrade head
+# Lint code
+flake8 .
 
-# Rollback
-alembic downgrade -1
+# Type checking
+mypy .
+```
+
+---
+
+## 🧪 Testing
+
+### Run Unit Tests
+
+```bash
+cd micro-src/server/user-service
+pytest tests/ -v
+```
+
+### Run Integration Tests
+
+```bash
+cd micro-src
+./deployment/scripts/test-complete.sh
+```
+
+### Coverage Report
+
+```bash
+pytest tests/ --cov=app --cov-report=html
 ```
 
 ---
 
 ## 🚢 Deployment
 
-### Docker Deployment
+### Docker Compose (Production)
 
 ```bash
-# Start all services
-docker compose up -d
-
-# Scale services
-docker compose up -d --scale product-service=3
-
-# View logs
-docker compose logs -f [service-name]
-
-# Stop all
-docker compose down
+cd micro-src
+docker compose -f docker-compose.yml up -d
 ```
 
-### Production Checklist
+### Kubernetes (Coming Soon)
 
-- [ ] Update `.env` with production values
-- [ ] Set strong `SECRET_KEY` for JWT
-- [ ] Configure specific CORS origins
-- [ ] Set up database backups
-- [ ] Configure SSL/TLS
-- [ ] Set up monitoring alerts
-- [ ] Enable rate limiting
+```bash
+kubectl apply -f k8s/
+```
 
-See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for details.
+### Health Check
+
+```bash
+# Check all services
+curl http://localhost:8001/health
+curl http://localhost:8002/health
+curl http://localhost:8003/health
+curl http://localhost:8004/health
+```
 
 ---
 
-## 📊 Monitoring
+## 📚 Documentation
 
-### Access Monitoring Tools
-
-```bash
-# Grafana Dashboard
-http://localhost:3000
-# Login: admin/admin
-
-# Prometheus Metrics
-http://localhost:9090
-
-# Jaeger Traces
-http://localhost:16686
-
-# RabbitMQ Management
-http://localhost:15672
-# Login: guest/guest
-```
-
-### Key Metrics
-
-- **Request Rate** - Requests per second
-- **Response Time** - p50, p95, p99 latencies
-- **Error Rate** - 4xx and 5xx responses
-- **Cache Hit Rate** - Redis effectiveness
-- **Queue Depth** - RabbitMQ backlog
-
-See [DEVOPS_README.md](./DEVOPS_README.md) for details.
+- [Architecture Documentation](./micro-src/ARCHITECTURE.md)
+- [API Documentation](./micro-src/API_DOCUMENTATION.md)
+- [DevOps Guide](./micro-src/DEVOPS_README.md)
+- [Deployment Status](./micro-src/DEPLOYMENT_STATUS.md)
+- [Changelog](./micro-src/CHANGELOG.md)
 
 ---
 
 ## 🤝 Contributing
 
+Contributions are welcome! Please follow these steps:
+
 1. Fork the repository
-2. Create feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open Pull Request
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+### Coding Standards
+
+- Follow PEP 8 style guide
+- Write docstrings for all functions and classes
+- Add unit tests for new features
+- Update documentation as needed
 
 ---
 
-## 📜 License
+## 📝 License
 
-This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 👥 Authors
+## 👨‍💻 Author
 
-- **Cong Dinh** - [@congdinh2008](https://github.com/congdinh2008)
+**Cong Dinh** ([@congdinh2008](https://github.com/congdinh2008))
+
+---
+
+## 🙏 Acknowledgments
+
+- FastAPI framework and community
+- Martin Fowler's Microservices Architecture
+- The Twelve-Factor App methodology
+- Clean Architecture by Robert C. Martin
 
 ---
 
 ## 📞 Support
 
-- 📧 Email: congdinh2008@example.com
+- 📧 Email: your.email@example.com
 - 🐛 Issues: [GitHub Issues](https://github.com/congdinh2008/python-micro/issues)
+- 💬 Discussions: [GitHub Discussions](https://github.com/congdinh2008/python-micro/discussions)
 
 ---
 
-## 🗺️ Roadmap
+## ⭐ Star History
 
-See [CHANGELOG.md](./CHANGELOG.md) for version history.
-
-### Upcoming Features
-
-- API Gateway with Kong/Nginx
-- Kubernetes deployment
-- GraphQL API layer
-- CI/CD with GitHub Actions
-- Service mesh integration
+[![Star History Chart](https://api.star-history.com/svg?repos=congdinh2008/python-micro&type=Date)](https://star-history.com/#congdinh2008/python-micro&Date)
 
 ---
 
-**⭐ If you find this project helpful, please give it a star!**
-
----
-
-**Last Updated:** October 17, 2025  
-**Version:** 1.4.0  
-**Status:** ✅ Production Ready
+**Made with ❤️ and Python**

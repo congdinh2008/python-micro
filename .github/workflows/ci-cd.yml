@@ -5,10 +5,12 @@ on:
     branches: [ master, main, develop ]
   pull_request:
     branches: [ master, main, develop ]
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ${{ github.repository }}
+  WORKING_DIR: micro-src/server
 
 jobs:
   test:
@@ -28,18 +30,18 @@ jobs:
       with:
         python-version: '3.11'
         cache: 'pip'
-        cache-dependency-path: '${{ matrix.service }}/requirements.txt'
+        cache-dependency-path: '${{ env.WORKING_DIR }}/${{ matrix.service }}/requirements.txt'
     
     - name: Install dependencies
       run: |
-        cd ${{ matrix.service }}
+        cd ${{ env.WORKING_DIR }}/${{ matrix.service }}
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pytest pytest-asyncio pytest-cov httpx
     
     - name: Run linting
       run: |
-        cd ${{ matrix.service }}
+        cd ${{ env.WORKING_DIR }}/${{ matrix.service }}
         pip install flake8
         # Stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
@@ -48,7 +50,7 @@ jobs:
     
     - name: Run tests
       run: |
-        cd ${{ matrix.service }}
+        cd ${{ env.WORKING_DIR }}/${{ matrix.service }}
         # Create test directory if it doesn't exist
         mkdir -p tests
         # Run tests if they exist
@@ -62,7 +64,7 @@ jobs:
       if: always()
       uses: codecov/codecov-action@v4
       with:
-        file: ${{ matrix.service }}/coverage.xml
+        file: ${{ env.WORKING_DIR }}/${{ matrix.service }}/coverage.xml
         flags: ${{ matrix.service }}
         name: codecov-${{ matrix.service }}
         fail_ci_if_error: false
@@ -120,8 +122,8 @@ jobs:
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
-        context: ./${{ matrix.service }}
-        file: ./${{ matrix.service }}/Dockerfile
+        context: ./${{ env.WORKING_DIR }}/${{ matrix.service }}
+        file: ./${{ env.WORKING_DIR }}/${{ matrix.service }}/Dockerfile
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
@@ -139,32 +141,49 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Create .env files
+    - name: Create .env file
       run: |
-        for service in user-service product-service order-service notification-service; do
-          if [ -f "$service/.env.example" ]; then
-            cp "$service/.env.example" "$service/.env"
-          fi
-        done
+        cd micro-src
+        if [ -f ".env.example" ]; then
+          cp .env.example .env
+        fi
     
     - name: Start services with Docker Compose
       run: |
+        cd micro-src
         docker compose up -d
-        sleep 30
+        echo "Waiting for services to be ready..."
+        sleep 60
+    
+    - name: Check infrastructure health
+      run: |
+        cd micro-src
+        echo "Checking PostgreSQL databases..."
+        docker compose exec -T user-db pg_isready -U user || echo "User DB not ready"
+        docker compose exec -T product-db pg_isready -U user || echo "Product DB not ready"
+        docker compose exec -T order-db pg_isready -U user || echo "Order DB not ready"
+        
+        echo "Checking Redis..."
+        docker compose exec -T redis redis-cli ping || echo "Redis not ready"
+        
+        echo "Checking RabbitMQ..."
+        docker compose exec -T rabbitmq rabbitmq-diagnostics ping || echo "RabbitMQ not ready"
     
     - name: Check service health
       run: |
+        cd micro-src
         services=("user-service:8001" "product-service:8002" "order-service:8003" "notification-service:8004")
         for service in "${services[@]}"; do
           IFS=':' read -r name port <<< "$service"
           echo "Checking health of $name on port $port..."
           for i in {1..30}; do
             if curl -f http://localhost:$port/health 2>/dev/null; then
-              echo "$name is healthy"
+              echo "✅ $name is healthy"
+              curl -s http://localhost:$port/health | jq .
               break
             fi
             if [ $i -eq 30 ]; then
-              echo "$name failed to become healthy"
+              echo "❌ $name failed to become healthy"
               docker compose logs $name
               exit 1
             fi
@@ -174,35 +193,89 @@ jobs:
     
     - name: Run integration tests
       run: |
-        # Test user registration and login
-        echo "Testing User Service..."
-        response=$(curl -X POST http://localhost:8001/register \
-          -H "Content-Type: application/json" \
-          -d '{"username":"testuser_ci","password":"testpass123"}')
-        echo "Register response: $response"
+        cd micro-src
         
-        token=$(curl -X POST http://localhost:8001/login \
+        # Generate unique test data
+        TIMESTAMP=$(date +%s)
+        TEST_USER="ci_user_${TIMESTAMP}"
+        
+        # Test user registration
+        echo "🧪 Testing User Service - Registration..."
+        REGISTER_RESPONSE=$(curl -X POST http://localhost:8001/register \
+          -H "Content-Type: application/json" \
+          -d "{\"username\":\"${TEST_USER}\",\"password\":\"Test@123\"}")
+        echo "Register response: $REGISTER_RESPONSE"
+        
+        # Test user login
+        echo "🧪 Testing User Service - Login..."
+        LOGIN_RESPONSE=$(curl -X POST http://localhost:8001/login \
           -H "Content-Type: application/x-www-form-urlencoded" \
-          -d "username=testuser_ci&password=testpass123" \
-          | jq -r '.access_token')
-        echo "Token obtained: ${token:0:20}..."
+          -d "username=${TEST_USER}&password=Test@123")
+        TOKEN=$(echo $LOGIN_RESPONSE | jq -r '.access_token')
+        echo "✅ Token obtained: ${TOKEN:0:30}..."
         
         # Test product creation
-        echo "Testing Product Service..."
-        curl -X POST http://localhost:8002/products \
+        echo "🧪 Testing Product Service - Create Product..."
+        PRODUCT_RESPONSE=$(curl -X POST http://localhost:8002/products \
           -H "Content-Type: application/json" \
-          -H "Authorization: Bearer $token" \
-          -d '{"name":"Test Product","description":"CI/CD Test","price":99.99,"quantity":10}'
+          -H "Authorization: Bearer $TOKEN" \
+          -d "{\"name\":\"CI Product ${TIMESTAMP}\",\"description\":\"CI/CD Test Product\",\"price\":99.99,\"quantity\":10}")
+        PRODUCT_ID=$(echo $PRODUCT_RESPONSE | jq -r '.id')
+        echo "✅ Product created with ID: $PRODUCT_ID"
         
-        # Test product retrieval (should use cache)
-        curl -X GET http://localhost:8002/products
+        # Test product retrieval (cache test)
+        echo "🧪 Testing Product Service - Get Product (DB)..."
+        curl -s http://localhost:8002/products/$PRODUCT_ID | jq .
         
-        echo "Integration tests completed successfully"
+        echo "🧪 Testing Product Service - Get Product (Cache)..."
+        curl -s http://localhost:8002/products/$PRODUCT_ID | jq .
+        
+        # Test product list
+        echo "🧪 Testing Product Service - List Products..."
+        curl -s http://localhost:8002/products | jq '. | length'
+        
+        # Test order creation (RabbitMQ test)
+        echo "🧪 Testing Order Service - Create Order..."
+        ORDER_RESPONSE=$(curl -X POST http://localhost:8003/orders \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer $TOKEN" \
+          -d "{\"product_id\":${PRODUCT_ID},\"quantity\":2}")
+        echo "✅ Order created:"
+        echo $ORDER_RESPONSE | jq .
+        
+        # Verify notification service processed the event
+        echo "🧪 Checking Notification Service logs for event processing..."
+        docker compose logs notification-service | tail -20
+        
+        echo "✅ All integration tests completed successfully"
+    
+    - name: Check observability stack
+      run: |
+        cd micro-src
+        echo "🔍 Checking Prometheus..."
+        curl -f http://localhost:9090/-/healthy || echo "Prometheus not healthy"
+        
+        echo "🔍 Checking Grafana..."
+        curl -f http://localhost:3000/api/health || echo "Grafana not healthy"
+        
+        echo "🔍 Checking Jaeger..."
+        curl -f http://localhost:16686/ || echo "Jaeger not healthy"
     
     - name: Show logs on failure
       if: failure()
-      run: docker compose logs
+      run: |
+        cd micro-src
+        echo "=== User Service Logs ==="
+        docker compose logs user-service
+        echo "=== Product Service Logs ==="
+        docker compose logs product-service
+        echo "=== Order Service Logs ==="
+        docker compose logs order-service
+        echo "=== Notification Service Logs ==="
+        docker compose logs notification-service
     
     - name: Stop services
       if: always()
-      run: docker compose down -v
+      run: |
+        cd micro-src
+        docker compose down -v

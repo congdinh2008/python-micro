@@ -1,0 +1,544 @@
+# ==============================================================================
+# Python Microservices E-Commerce Platform
+# Production-Ready Docker Compose Configuration
+# ==============================================================================
+# Docker Compose File Format: Latest (no version field needed)
+
+services:
+  # ============================================================================
+  # DATABASE SERVICES
+  # ============================================================================
+
+  # PostgreSQL for User Service
+  user-db:
+    image: postgres:15-alpine
+    container_name: user-service-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${USER_DB_USER:-user}
+      POSTGRES_PASSWORD: ${USER_DB_PASSWORD:-password}
+      POSTGRES_DB: ${USER_DB_NAME:-user_service_db}
+    ports:
+      - "${USER_DB_PORT:-5433}:5432"
+    volumes:
+      - user-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${USER_DB_USER:-user} -d ${USER_DB_NAME:-user_service_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - backend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # PostgreSQL for Product Service
+  product-db:
+    image: postgres:15-alpine
+    container_name: product-service-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PRODUCT_DB_USER:-user}
+      POSTGRES_PASSWORD: ${PRODUCT_DB_PASSWORD:-password}
+      POSTGRES_DB: ${PRODUCT_DB_NAME:-product_service_db}
+    ports:
+      - "${PRODUCT_DB_PORT:-5434}:5432"
+    volumes:
+      - product-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PRODUCT_DB_USER:-user} -d ${PRODUCT_DB_NAME:-product_service_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - backend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # PostgreSQL for Order Service
+  order-db:
+    image: postgres:15-alpine
+    container_name: order-service-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${ORDER_DB_USER:-user}
+      POSTGRES_PASSWORD: ${ORDER_DB_PASSWORD:-password}
+      POSTGRES_DB: ${ORDER_DB_NAME:-order_service_db}
+    ports:
+      - "${ORDER_DB_PORT:-5435}:5432"
+    volumes:
+      - order-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ORDER_DB_USER:-user} -d ${ORDER_DB_NAME:-order_service_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - backend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================================
+  # CACHE & MESSAGE BROKER
+  # ============================================================================
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: redis-cache
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - backend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # RabbitMQ for async messaging
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq-server
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"     # AMQP port
+      - "${RABBITMQ_MGMT_PORT:-15672}:15672" # Management UI
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - backend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================================
+  # APPLICATION SERVICES
+  # ============================================================================
+
+  # User Service
+  user-service:
+    build:
+      context: ./server/user-service
+      dockerfile: Dockerfile
+      args:
+        PYTHON_VERSION: 3.11
+    image: user-service:${VERSION:-latest}
+    container_name: user-service
+    restart: unless-stopped
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${USER_DB_USER:-user}:${USER_DB_PASSWORD:-password}@user-db:5432/${USER_DB_NAME:-user_service_db}
+      
+      # Security
+      SECRET_KEY: ${USER_SERVICE_SECRET_KEY:-your-secret-key-change-this-in-production-min-32-characters-required}
+      ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      
+      # Service
+      PORT: ${USER_SERVICE_PORT:-8001}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      
+      # CORS
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
+      
+      # Observability
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-http://jaeger:4317}
+      OTEL_SERVICE_NAME: user-service
+    ports:
+      - "${USER_SERVICE_PORT:-8001}:8001"
+    depends_on:
+      user-db:
+        condition: service_healthy
+    command: ./start.sh
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    networks:
+      - backend
+      - monitoring
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=user-service"
+
+  # Product Service
+  product-service:
+    build:
+      context: ./server/product-service
+      dockerfile: Dockerfile
+      args:
+        PYTHON_VERSION: 3.11
+    image: product-service:${VERSION:-latest}
+    container_name: product-service
+    restart: unless-stopped
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${PRODUCT_DB_USER:-user}:${PRODUCT_DB_PASSWORD:-password}@product-db:5432/${PRODUCT_DB_NAME:-product_service_db}
+      
+      # Dependencies
+      USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:8001}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_INTERNAL_PORT:-6379}
+      REDIS_TTL: ${REDIS_TTL:-300}
+      
+      # Service
+      PORT: ${PRODUCT_SERVICE_PORT:-8002}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      
+      # CORS
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
+      
+      # Observability
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-http://jaeger:4317}
+      OTEL_SERVICE_NAME: product-service
+    ports:
+      - "${PRODUCT_SERVICE_PORT:-8002}:8002"
+    depends_on:
+      product-db:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ./start.sh
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    networks:
+      - backend
+      - monitoring
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=product-service"
+
+  # Order Service
+  order-service:
+    build:
+      context: ./server/order-service
+      dockerfile: Dockerfile
+      args:
+        PYTHON_VERSION: 3.11
+    image: order-service:${VERSION:-latest}
+    container_name: order-service
+    restart: unless-stopped
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${ORDER_DB_USER:-user}:${ORDER_DB_PASSWORD:-password}@order-db:5432/${ORDER_DB_NAME:-order_service_db}
+      
+      # Dependencies
+      USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:8001}
+      PRODUCT_SERVICE_URL: ${PRODUCT_SERVICE_URL:-http://product-service:8002}
+      RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
+      RABBITMQ_PORT: ${RABBITMQ_INTERNAL_PORT:-5672}
+      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      
+      # Service
+      PORT: ${ORDER_SERVICE_PORT:-8003}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      
+      # CORS
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
+      
+      # Observability
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-http://jaeger:4317}
+      OTEL_SERVICE_NAME: order-service
+    ports:
+      - "${ORDER_SERVICE_PORT:-8003}:8003"
+    depends_on:
+      order-db:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      product-service:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    command: ./start.sh
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    networks:
+      - backend
+      - monitoring
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=order-service"
+
+  # Notification Service
+  notification-service:
+    build:
+      context: ./server/notification-service
+      dockerfile: Dockerfile
+      args:
+        PYTHON_VERSION: 3.11
+    image: notification-service:${VERSION:-latest}
+    container_name: notification-service
+    restart: unless-stopped
+    environment:
+      # Dependencies
+      RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
+      RABBITMQ_PORT: ${RABBITMQ_INTERNAL_PORT:-5672}
+      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      
+      # Service
+      PORT: ${NOTIFICATION_SERVICE_PORT:-8004}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      
+      # CORS
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
+      
+      # Observability
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-http://jaeger:4317}
+      OTEL_SERVICE_NAME: notification-service
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-8004}:8004"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    networks:
+      - backend
+      - monitoring
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=notification-service"
+
+  # ============================================================================
+  # OBSERVABILITY STACK
+  # ============================================================================
+
+  # Prometheus - Metrics Collection
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./deployment/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-7d}'
+      - '--web.enable-lifecycle'
+    networks:
+      - monitoring
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Loki - Log Aggregation
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: loki
+    restart: unless-stopped
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    volumes:
+      - ./deployment/observability/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - monitoring
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Promtail - Log Collector
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: promtail
+    restart: unless-stopped
+    volumes:
+      - ./deployment/observability/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - monitoring
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Grafana - Visualization
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:3000}
+      - GF_INSTALL_PLUGINS=grafana-clock-panel
+      - GF_LOG_LEVEL=${GRAFANA_LOG_LEVEL:-info}
+    volumes:
+      - ./deployment/observability/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./deployment/observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./deployment/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - monitoring
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Jaeger - Distributed Tracing
+  jaeger:
+    image: jaegertracing/all-in-one:1.51
+    container_name: jaeger
+    restart: unless-stopped
+    ports:
+      - "5775:5775/udp"      # Compact thrift protocol (deprecated)
+      - "6831:6831/udp"      # Compact thrift protocol
+      - "6832:6832/udp"      # Binary thrift protocol
+      - "5778:5778"          # Serve configs
+      - "${JAEGER_UI_PORT:-16686}:16686"  # Jaeger UI
+      - "14268:14268"        # Jaeger collector HTTP
+      - "14250:14250"        # gRPC
+      - "9411:9411"          # Zipkin compatible endpoint
+      - "4317:4317"          # OTLP gRPC
+      - "4318:4318"          # OTLP HTTP
+    environment:
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+      - COLLECTOR_OTLP_ENABLED=true
+      - SPAN_STORAGE_TYPE=${JAEGER_STORAGE_TYPE:-memory}
+      - MEMORY_MAX_TRACES=${JAEGER_MAX_TRACES:-10000}
+    networks:
+      - monitoring
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Redis Exporter for Prometheus
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.55.0
+    container_name: redis-exporter
+    restart: unless-stopped
+    ports:
+      - "${REDIS_EXPORTER_PORT:-9121}:9121"
+    environment:
+      - REDIS_ADDR=${REDIS_HOST:-redis}:${REDIS_INTERNAL_PORT:-6379}
+    depends_on:
+      - redis
+    networks:
+      - backend
+      - monitoring
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# ==============================================================================
+# NETWORKS
+# ==============================================================================
+networks:
+  backend:
+    driver: bridge
+    name: microservices-backend
+  monitoring:
+    driver: bridge
+    name: microservices-monitoring
+
+# ==============================================================================
+# VOLUMES
+# ==============================================================================
+volumes:
+  user-db-data:
+    name: user-db-data
+  product-db-data:
+    name: product-db-data
+  order-db-data:
+    name: order-db-data
+  redis-data:
+    name: redis-data
+  rabbitmq-data:
+    name: rabbitmq-data
+  loki-data:
+    name: loki-data
+  prometheus-data:
+    name: prometheus-data
+  grafana-data:
+    name: grafana-data
