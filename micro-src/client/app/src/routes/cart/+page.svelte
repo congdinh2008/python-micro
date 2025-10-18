@@ -4,6 +4,7 @@
 	 * @description Full shopping cart page with items list and summary
 	 */
 	import { goto } from '$app/navigation';
+	import { uiStore } from '$lib/application/stores/uiStore';
 	import {
 		cartStore,
 		cartItems,
@@ -28,8 +29,9 @@
 	async function handleRemove(productId: number) {
 		await cartStore.removeFromCart(productId);
 
-		// Show undo notification
+		// Show undo notification with toast
 		showUndoNotification = true;
+		uiStore.showInfo('Item removed from cart');
 
 		// Clear any existing timeout
 		if (undoTimeout) {
@@ -45,6 +47,7 @@
 	async function handleUndo() {
 		await cartStore.undoRemove();
 		showUndoNotification = false;
+		uiStore.showSuccess('Item restored to cart');
 
 		if (undoTimeout) {
 			clearTimeout(undoTimeout);
@@ -55,6 +58,7 @@
 	function handleClearCart() {
 		if (confirm('Are you sure you want to clear your cart?')) {
 			cartStore.clearCart();
+			uiStore.showInfo('Cart cleared successfully');
 		}
 	}
 
