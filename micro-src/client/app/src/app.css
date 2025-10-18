@@ -7,6 +7,17 @@
 	body {
 		@apply bg-gray-50 text-gray-900;
 	}
+
+	/* Ensure minimum tap target size for mobile (44x44px) */
+	button,
+	a {
+		@apply min-h-[44px] inline-flex items-center justify-center;
+	}
+
+	/* Improve focus visibility */
+	*:focus-visible {
+		@apply outline-none ring-2 ring-primary-500 ring-offset-2 rounded;
+	}
 }
 
 /* Focus visible styles for accessibility */
@@ -14,4 +25,37 @@
 	.focus-ring {
 		@apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
 	}
+
+	/* Skip to content link */
+	.skip-link {
+		@apply sr-only focus:not-sr-only;
+	}
+
+	/* Screen reader only */
+	.sr-only {
+		@apply absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0;
+	}
+
+	.sr-only:focus {
+		@apply static w-auto h-auto p-2 m-0 overflow-visible whitespace-normal;
+	}
 }
+
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+	* {
+		border-width: 2px;
+	}
+}
+
