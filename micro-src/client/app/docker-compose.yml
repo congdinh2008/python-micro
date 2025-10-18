@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    environment:
+      - NODE_ENV=production
+    networks:
+      - ecommerce-network
+    depends_on:
+      - user-service
+      - product-service
+      - order-service
+    restart: unless-stopped
+
+  # Reference to backend services (assuming they're running)
+  user-service:
+    image: user-service:latest
+    external: true
+    networks:
+      - ecommerce-network
+
+  product-service:
+    image: product-service:latest
+    external: true
+    networks:
+      - ecommerce-network
+
+  order-service:
+    image: order-service:latest
+    external: true
+    networks:
+      - ecommerce-network
+
+networks:
+  ecommerce-network:
+    external: true
