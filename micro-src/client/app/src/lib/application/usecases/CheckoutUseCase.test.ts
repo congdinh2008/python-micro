@@ -42,7 +42,7 @@ describe('CheckoutUseCase', () => {
 		quantity: 2,
 		unit_price: 100,
 		total_price: 200,
-		status: 'pending' as OrderStatus,
+		status: OrderStatus.PENDING,
 		created_at: '2025-10-18T00:00:00Z',
 		updated_at: '2025-10-18T00:00:00Z'
 	};
