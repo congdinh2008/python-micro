@@ -8,6 +8,7 @@
 	import Pagination from '$lib/presentation/components/ui/Pagination.svelte';
 	import Alert from '$lib/presentation/components/ui/Alert.svelte';
 	import { productStore, filterStore } from '$lib/application/stores/productStore';
+	import { cartStore } from '$lib/application/stores/cartStore';
 	import type { ProductFilters } from '$lib/domain/entities/Product';
 
 	let products: Product[] = [];
@@ -122,11 +123,13 @@
 		productStore.setPageSize(pageSize);
 	}
 
-	// Mock function for add to cart (to be implemented)
-	function handleAddToCart(product: Product) {
-		console.log('Add to cart:', product);
-		// TODO: Implement cart functionality
-		alert(`Added "${product.name}" to cart!`);
+	// Handle add to cart
+	async function handleAddToCart(product: Product) {
+		const success = await cartStore.addToCart(product, 1);
+		if (success) {
+			// Show success feedback (you could use a toast notification here)
+			console.log(`Added "${product.name}" to cart!`);
+		}
 	}
 
 	// Load products on mount
