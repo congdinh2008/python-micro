@@ -28,7 +28,6 @@ let showPassword = $state(false);
 
 // Derived states
 let isSubmitting = $derived($authLoading);
-let hasErrors = $derived(Object.keys(validationErrors).length > 0 || $authError !== null);
 let canSubmit = $derived(!isSubmitting && username.length > 0 && password.length > 0);
 
 /**
@@ -127,7 +126,6 @@ required
 autocomplete="username"
 placeholder="Enter your username"
 oninput={handleUsernameChange}
-aria-describedby={validationErrors.username ? 'username-error' : undefined}
 />
 </div>
 
@@ -146,7 +144,6 @@ required
 autocomplete="current-password"
 placeholder="Enter your password"
 oninput={handlePasswordChange}
-aria-describedby={validationErrors.password ? 'password-error' : undefined}
 />
 <button
 type="button"
