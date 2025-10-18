@@ -59,8 +59,7 @@
 	}
 
 	function handleCheckout() {
-		// TODO: Implement checkout flow
-		alert('Checkout functionality will be implemented soon!');
+		goto('/checkout');
 	}
 
 	function handleContinueShopping() {

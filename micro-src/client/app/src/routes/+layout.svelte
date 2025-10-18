@@ -51,6 +51,16 @@
 					Products
 				</a>
 
+				{#if $isAuthenticated}
+					<!-- Orders link (authenticated only) -->
+					<a
+						href="/orders"
+						class="text-sm font-medium text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md hover:bg-gray-100 transition-colors"
+					>
+						My Orders
+					</a>
+				{/if}
+
 				<!-- Cart Badge -->
 				<CartBadge onclick={handleCartClick} />
 
