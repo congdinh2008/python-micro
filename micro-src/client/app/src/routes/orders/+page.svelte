@@ -37,21 +37,38 @@
 	});
 
 	/**
-	 * Handle filter changes with debounce
+	 * Track the current filter request to prevent race conditions
+	 */
+	let currentRequestId = 0;
+
+	/**
+	 * Handle filter changes with debounce and race condition prevention
 	 */
 	const handleFilterChange = debounce(async (filters: Partial<OrderHistoryFilters>) => {
+		const requestId = ++currentRequestId;
 		isFiltering = true;
+
 		await orderStore.updateFilters(filters);
-		isFiltering = false;
+
+		// Only update state if this is still the latest request
+		if (requestId === currentRequestId) {
+			isFiltering = false;
+		}
 	}, 300);
 
 	/**
 	 * Handle clear filters
 	 */
 	async function handleClearFilters() {
+		const requestId = ++currentRequestId;
 		isFiltering = true;
+
 		await orderStore.clearFilters();
-		isFiltering = false;
+
+		// Only update state if this is still the latest request
+		if (requestId === currentRequestId) {
+			isFiltering = false;
+		}
 	}
 
 	/**
@@ -155,14 +172,8 @@
 		/>
 
 		<!-- Loading State -->
-		{#if $orderLoading && !hasLoaded}
+		{#if ($orderLoading && !hasLoaded) || isFiltering}
 			<OrderCardSkeleton count={3} />
-		{:else if $orderLoading && isFiltering}
-			<OrderCardSkeleton count={3} />
-			<div class="loading-container">
-				<div class="spinner"></div>
-				<p class="loading-text">Loading orders...</p>
-			</div>
 		{:else if $orders.length === 0}
 			<!-- Empty State -->
 			<div class="empty-state" transition:fade>
