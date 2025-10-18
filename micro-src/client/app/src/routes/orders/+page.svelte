@@ -38,6 +38,8 @@
 
 	/**
 	 * Track the current filter request to prevent race conditions
+	 * Using a counter is safe for this use case as it would take millions of years
+	 * of continuous filtering to reach overflow at human interaction speeds
 	 */
 	let currentRequestId = 0;
 
@@ -45,7 +47,8 @@
 	 * Handle filter changes with debounce and race condition prevention
 	 */
 	const handleFilterChange = debounce(async (filters: Partial<OrderHistoryFilters>) => {
-		const requestId = ++currentRequestId;
+		currentRequestId++;
+		const requestId = currentRequestId;
 		isFiltering = true;
 
 		await orderStore.updateFilters(filters);
@@ -60,7 +63,8 @@
 	 * Handle clear filters
 	 */
 	async function handleClearFilters() {
-		const requestId = ++currentRequestId;
+		currentRequestId++;
+		const requestId = currentRequestId;
 		isFiltering = true;
 
 		await orderStore.clearFilters();
