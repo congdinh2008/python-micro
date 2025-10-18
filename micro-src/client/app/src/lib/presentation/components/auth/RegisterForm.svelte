@@ -5,6 +5,7 @@
 	 */
 
 	import { goto } from '$app/navigation';
+	import { uiStore } from '$lib/application/stores/uiStore';
 	import Input from '../ui/Input.svelte';
 	import Button from '../ui/Button.svelte';
 	import Alert from '../ui/Alert.svelte';
@@ -176,6 +177,7 @@
 
 			if (result.success) {
 				successMessage = 'Registration successful! Redirecting to login...';
+				uiStore.showSuccess('Registration successful! Please login to continue.');
 
 				// Redirect to login page after 2 seconds
 				setTimeout(() => {
@@ -190,9 +192,11 @@
 				} else {
 					formError = result.error.message;
 				}
+				uiStore.showError(result.error.message);
 			}
 		} catch (error) {
 			formError = 'An unexpected error occurred. Please try again.';
+			uiStore.showError('Registration failed. Please try again.');
 		} finally {
 			isSubmitting = false;
 		}

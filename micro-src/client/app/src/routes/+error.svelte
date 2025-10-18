@@ -24,9 +24,9 @@
 	const description = $derived(
 		error?.message ||
 			(status === 404
-				? 'Sorry, we couldn't find the page you're looking for.'
+				? "Sorry, we couldn't find the page you're looking for."
 				: status === 403
-					? 'You don't have permission to access this resource.'
+					? "You don't have permission to access this resource."
 					: status === 500
 						? 'Something went wrong on our end. Please try again later.'
 						: 'An unexpected error occurred.')

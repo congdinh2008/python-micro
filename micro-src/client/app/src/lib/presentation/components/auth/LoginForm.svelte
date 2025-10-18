@@ -5,6 +5,7 @@
  */
 
 import { authStore, authError, authLoading } from '$lib/application/stores/authStore';
+import { uiStore } from '$lib/application/stores/uiStore';
 import { loginSchema } from '$lib/domain/validation/loginSchema';
 import Input from '../ui/Input.svelte';
 import Button from '../ui/Button.svelte';
@@ -68,11 +69,13 @@ return;
 try {
 await authStore.login(username, password);
 
-// Login successful - redirect
+// Login successful - show toast and redirect
+uiStore.showSuccess('Login successful! Welcome back.');
 await goto(redirectTo);
 } catch (error) {
 // Error is handled by the store and displayed in UI
 console.error('Login failed:', error);
+uiStore.showError('Login failed. Please check your credentials.');
 }
 }
 
