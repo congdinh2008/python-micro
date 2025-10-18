@@ -1,65 +1,145 @@
+# ============================================================================
+# CI/CD Pipeline for Python Microservices E-Commerce Platform
+# ============================================================================
+# 
+# This workflow handles:
+# - Automated testing (linting, unit tests, integration tests)
+# - Docker image building and pushing to registries
+# - Full E2E testing with Docker Compose
+# - Multi-platform builds (amd64, arm64)
+# - Code coverage reporting
+# 
+# Architecture:
+# - 4 microservices: user, product, order, notification
+# - Infrastructure: PostgreSQL, Redis, RabbitMQ, Observability stack
+# 
+# Maintainer: Cong Dinh (@congdinh2008)
+# Last Updated: October 18, 2025
+# ============================================================================
+
 name: CI/CD Pipeline
 
+# ============================================================================
+# Workflow Triggers
+# ============================================================================
 on:
+  # Trigger on push to main branches
+  # Excludes: feature/* branches to avoid unnecessary builds
   push:
-    branches: [ master, main, develop ]
+    branches: 
+      - master
+      - main
+      - develop
+    # Ignore documentation-only changes to save CI time
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/copilot-instructions.md'
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - 'LICENSE'
+      - '.gitignore'
+  
+  # Trigger on pull requests to main branches
   pull_request:
-    branches: [ master, main, develop ]
+    branches: 
+      - master
+      - main
+      - develop
+    # Ignore documentation-only changes in PRs
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/copilot-instructions.md'
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - 'LICENSE'
+      - '.gitignore'
+  
+  # Allow manual workflow trigger from GitHub Actions UI
   workflow_dispatch:
 
+# ============================================================================
+# Environment Variables
+# ============================================================================
+# These are available to all jobs in the workflow
 env:
+  # GitHub Container Registry for storing Docker images
   REGISTRY: ghcr.io
+  # Image prefix uses repository name (owner/repo)
   IMAGE_PREFIX: ${{ github.repository }}
+  # Base directory where all microservices are located
   WORKING_DIR: micro-src/server
 
+
+# ============================================================================
+# Job 1: Test Services
+# ============================================================================
+# Purpose: Run linting and unit tests for all microservices
+# Strategy: Matrix build - runs in parallel for each service
+# Dependencies: None (runs first)
+# ============================================================================
 jobs:
   test:
     name: Test Services
     runs-on: ubuntu-latest
     
+    # Matrix strategy: Run this job 4 times in parallel, once per service
     strategy:
       matrix:
         service: [user-service, product-service, order-service, notification-service]
     
     steps:
+    # Step 1: Checkout repository code
     - name: Checkout code
       uses: actions/checkout@v4
     
+    # Step 2: Setup Python environment with caching
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
+        # Cache pip dependencies for faster builds
         cache: 'pip'
         cache-dependency-path: '${{ env.WORKING_DIR }}/${{ matrix.service }}/requirements.txt'
     
+    # Step 3: Install Python dependencies
     - name: Install dependencies
       run: |
         cd ${{ env.WORKING_DIR }}/${{ matrix.service }}
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        # Install testing tools
         pip install pytest pytest-asyncio pytest-cov httpx
     
+    # Step 4: Run flake8 linting
+    # Checks for syntax errors, undefined names, and code quality
     - name: Run linting
       run: |
         cd ${{ env.WORKING_DIR }}/${{ matrix.service }}
         pip install flake8
-        # Stop the build if there are Python syntax errors or undefined names
+        # Critical errors: Stop the build if found
+        # E9: Runtime errors, F63/F7/F82: Syntax errors, undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # Exit-zero treats all errors as warnings
+        # Style warnings: Report but don't fail
+        # Max complexity: 10, Max line length: 127
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     
+    # Step 5: Run unit tests with coverage
     - name: Run tests
       run: |
         cd ${{ env.WORKING_DIR }}/${{ matrix.service }}
         # Create test directory if it doesn't exist
         mkdir -p tests
-        # Run tests if they exist
+        # Run tests if they exist, otherwise skip
         if [ -d "tests" ] && [ "$(ls -A tests/*.py 2>/dev/null)" ]; then
           pytest tests/ -v --cov=app --cov-report=xml --cov-report=term
         else
           echo "No tests found, skipping..."
         fi
     
+    # Step 6: Upload coverage reports to Codecov
+    # Runs even if previous steps fail (if: always())
     - name: Upload coverage reports
       if: always()
       uses: codecov/codecov-action@v4
@@ -67,29 +147,45 @@ jobs:
         file: ${{ env.WORKING_DIR }}/${{ matrix.service }}/coverage.xml
         flags: ${{ matrix.service }}
         name: codecov-${{ matrix.service }}
+        # Don't fail CI if codecov upload fails
         fail_ci_if_error: false
 
+
+
+  # ============================================================================
+  # Job 2: Build and Push Docker Images
+  # ============================================================================
+  # Purpose: Build Docker images and push to GHCR and Docker Hub
+  # Strategy: Matrix build - builds each service in parallel
+  # Dependencies: Requires 'test' job to pass
+  # Condition: Only runs on push events (not PRs)
+  # ============================================================================
   build-and-push:
     name: Build and Push Docker Images
     runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'push'
+    needs: test  # Wait for all tests to pass
+    if: github.event_name == 'push'  # Skip for pull requests
     
+    # Matrix strategy: Build 4 services in parallel
     strategy:
       matrix:
         service: [user-service, product-service, order-service, notification-service]
     
+    # Required permissions for pushing to GHCR
     permissions:
-      contents: read
-      packages: write
+      contents: read      # Read repository contents
+      packages: write     # Write to GitHub Packages (GHCR)
     
     steps:
+    # Step 1: Checkout repository code
     - name: Checkout code
       uses: actions/checkout@v4
     
+    # Step 2: Setup Docker Buildx for multi-platform builds
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
     
+    # Step 3: Login to GitHub Container Registry (GHCR)
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v3
       with:
@@ -97,6 +193,8 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     
+    # Step 4: Login to Docker Hub (optional)
+    # Only for main/master branch pushes
     - name: Log in to Docker Hub
       if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
       uses: docker/login-action@v3
@@ -104,21 +202,27 @@ jobs:
         username: ${{ vars.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
     
+    # Step 5: Generate Docker image metadata (tags and labels)
+    # Creates semantic versioning tags, branch tags, and commit SHA tags
     - name: Extract metadata
       id: meta
       uses: docker/metadata-action@v5
       with:
+        # Push to both GHCR and Docker Hub
         images: |
           ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
           ${{ vars.DOCKER_USERNAME }}/python-micro-${{ matrix.service }}
+        # Tag generation rules
         tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=sha,prefix={{branch}}-
-          type=raw,value=latest,enable={{is_default_branch}}
+          type=ref,event=branch              # branch name (e.g., master)
+          type=ref,event=pr                  # PR number (e.g., pr-123)
+          type=semver,pattern={{version}}    # version tag (e.g., 1.2.3)
+          type=semver,pattern={{major}}.{{minor}}  # major.minor (e.g., 1.2)
+          type=sha,prefix={{branch}}-        # commit SHA with branch prefix
+          type=raw,value=latest,enable={{is_default_branch}}  # latest tag for default branch
     
+    # Step 6: Build and push Docker images
+    # Multi-platform build for both amd64 and arm64
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
@@ -127,20 +231,35 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+        # GitHub Actions cache for faster builds
         cache-from: type=gha
         cache-to: type=gha,mode=max
+        # Build for multiple platforms
         platforms: linux/amd64,linux/arm64
 
+
+
+  # ============================================================================
+  # Job 3: Integration Testing with Docker Compose
+  # ============================================================================
+  # Purpose: E2E testing of the entire microservices ecosystem
+  # Tests: Infrastructure health, service health, API integration, observability
+  # Dependencies: Requires 'build-and-push' job to complete
+  # Condition: Only runs on push events (not PRs)
+  # ============================================================================
   docker-compose-test:
     name: Integration Test with Docker Compose
     runs-on: ubuntu-latest
-    needs: build-and-push
-    if: github.event_name == 'push'
+    needs: build-and-push  # Wait for Docker images to be built
+    if: github.event_name == 'push'  # Skip for pull requests
     
     steps:
+    # Step 1: Checkout repository code
     - name: Checkout code
       uses: actions/checkout@v4
     
+    # Step 2: Create environment file for Docker Compose
+    # Copy from .env.example if it exists
     - name: Create .env file
       run: |
         cd micro-src
@@ -148,13 +267,18 @@ jobs:
           cp .env.example .env
         fi
     
+    # Step 3: Start all services with Docker Compose
+    # Includes: 4 microservices + 11 infrastructure services
     - name: Start services with Docker Compose
       run: |
         cd micro-src
         docker compose up -d
         echo "Waiting for services to be ready..."
+        # Wait 60 seconds for all containers to initialize
         sleep 60
     
+    # Step 4: Verify infrastructure components are healthy
+    # Tests: PostgreSQL (3 databases), Redis, RabbitMQ
     - name: Check infrastructure health
       run: |
         cd micro-src
@@ -169,6 +293,8 @@ jobs:
         echo "Checking RabbitMQ..."
         docker compose exec -T rabbitmq rabbitmq-diagnostics ping || echo "RabbitMQ not ready"
     
+    # Step 5: Verify all microservices respond to health checks
+    # Waits up to 60 seconds per service for health endpoint
     - name: Check service health
       run: |
         cd micro-src
@@ -176,6 +302,7 @@ jobs:
         for service in "${services[@]}"; do
           IFS=':' read -r name port <<< "$service"
           echo "Checking health of $name on port $port..."
+          # Retry up to 30 times (60 seconds)
           for i in {1..30}; do
             if curl -f http://localhost:$port/health 2>/dev/null; then
               echo "✅ $name is healthy"
@@ -191,22 +318,24 @@ jobs:
           done
         done
     
+    # Step 6: Run comprehensive integration tests
+    # Tests the complete user flow: register → login → create product → create order
     - name: Run integration tests
       run: |
         cd micro-src
         
-        # Generate unique test data
+        # Generate unique test data to avoid conflicts
         TIMESTAMP=$(date +%s)
         TEST_USER="ci_user_${TIMESTAMP}"
         
-        # Test user registration
+        # Test 1: User registration
         echo "🧪 Testing User Service - Registration..."
         REGISTER_RESPONSE=$(curl -X POST http://localhost:8001/register \
           -H "Content-Type: application/json" \
           -d "{\"username\":\"${TEST_USER}\",\"password\":\"Test@123\"}")
         echo "Register response: $REGISTER_RESPONSE"
         
-        # Test user login
+        # Test 2: User login and JWT token generation
         echo "🧪 Testing User Service - Login..."
         LOGIN_RESPONSE=$(curl -X POST http://localhost:8001/login \
           -H "Content-Type: application/x-www-form-urlencoded" \
@@ -214,7 +343,7 @@ jobs:
         TOKEN=$(echo $LOGIN_RESPONSE | jq -r '.access_token')
         echo "✅ Token obtained: ${TOKEN:0:30}..."
         
-        # Test product creation
+        # Test 3: Product creation (requires authentication)
         echo "🧪 Testing Product Service - Create Product..."
         PRODUCT_RESPONSE=$(curl -X POST http://localhost:8002/products \
           -H "Content-Type: application/json" \
@@ -223,18 +352,19 @@ jobs:
         PRODUCT_ID=$(echo $PRODUCT_RESPONSE | jq -r '.id')
         echo "✅ Product created with ID: $PRODUCT_ID"
         
-        # Test product retrieval (cache test)
+        # Test 4: Product retrieval from database
         echo "🧪 Testing Product Service - Get Product (DB)..."
         curl -s http://localhost:8002/products/$PRODUCT_ID | jq .
         
+        # Test 5: Product retrieval from cache (cache-aside pattern)
         echo "🧪 Testing Product Service - Get Product (Cache)..."
         curl -s http://localhost:8002/products/$PRODUCT_ID | jq .
         
-        # Test product list
+        # Test 6: List all products
         echo "🧪 Testing Product Service - List Products..."
         curl -s http://localhost:8002/products | jq '. | length'
         
-        # Test order creation (RabbitMQ test)
+        # Test 7: Order creation (triggers RabbitMQ event)
         echo "🧪 Testing Order Service - Create Order..."
         ORDER_RESPONSE=$(curl -X POST http://localhost:8003/orders \
           -H "Content-Type: application/json" \
@@ -243,12 +373,14 @@ jobs:
         echo "✅ Order created:"
         echo $ORDER_RESPONSE | jq .
         
-        # Verify notification service processed the event
+        # Test 8: Verify notification service processed the RabbitMQ event
         echo "🧪 Checking Notification Service logs for event processing..."
         docker compose logs notification-service | tail -20
         
         echo "✅ All integration tests completed successfully"
     
+    # Step 7: Verify observability stack is operational
+    # Checks: Prometheus, Grafana, Jaeger
     - name: Check observability stack
       run: |
         cd micro-src
@@ -261,6 +393,8 @@ jobs:
         echo "🔍 Checking Jaeger..."
         curl -f http://localhost:16686/ || echo "Jaeger not healthy"
     
+    # Step 8: Show detailed logs if any step fails
+    # Only runs if previous steps failed (if: failure())
     - name: Show logs on failure
       if: failure()
       run: |
@@ -274,8 +408,11 @@ jobs:
         echo "=== Notification Service Logs ==="
         docker compose logs notification-service
     
+    # Step 9: Clean up - stop all services and remove volumes
+    # Always runs (if: always()) even if tests fail
     - name: Stop services
       if: always()
       run: |
         cd micro-src
         docker compose down -v
+
