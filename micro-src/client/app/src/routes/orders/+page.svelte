@@ -1,18 +1,29 @@
 <script lang="ts">
 	/**
 	 * @page Orders Page
-	 * @description List of user's orders with status and details
+	 * @description List of user's orders with status and details, with filtering capabilities
 	 */
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { orderStore, orders, orderLoading, orderError } from '$lib/application/stores/orderStore';
+	import {
+		orderStore,
+		orders,
+		orderLoading,
+		orderError,
+		orderFilters
+	} from '$lib/application/stores/orderStore';
 	import { isAuthenticated } from '$lib/application/stores/authStore';
 	import Alert from '$lib/presentation/components/ui/Alert.svelte';
+	import OrderHistoryFilter from '$lib/presentation/components/order/OrderHistoryFilter.svelte';
+	import OrderCardSkeleton from '$lib/presentation/components/order/OrderCardSkeleton.svelte';
 	import { formatPrice } from '$lib/utils/formatters';
 	import { OrderStatus } from '$lib/domain/entities/Order';
+	import type { OrderHistoryFilters } from '$lib/domain/dto/OrderHistoryFilters';
 	import { fade } from 'svelte/transition';
+	import { debounce } from '$lib/utils/debounce';
 
 	let hasLoaded = false;
+	let isFiltering = false;
 
 	// Check authentication and load orders on mount
 	onMount(async () => {
@@ -24,6 +35,24 @@
 		await orderStore.fetchOrders();
 		hasLoaded = true;
 	});
+
+	/**
+	 * Handle filter changes with debounce
+	 */
+	const handleFilterChange = debounce(async (filters: Partial<OrderHistoryFilters>) => {
+		isFiltering = true;
+		await orderStore.updateFilters(filters);
+		isFiltering = false;
+	}, 300);
+
+	/**
+	 * Handle clear filters
+	 */
+	async function handleClearFilters() {
+		isFiltering = true;
+		await orderStore.clearFilters();
+		isFiltering = false;
+	}
 
 	/**
 	 * Get status badge color
@@ -109,11 +138,27 @@
 
 		<!-- Error Alert -->
 		{#if $orderError}
-			<Alert type="error" message={$orderError} dismissible onDismiss={() => orderStore.clearError()} />
+			<Alert
+				type="error"
+				message={$orderError}
+				dismissible
+				onDismiss={() => orderStore.clearError()}
+			/>
 		{/if}
+
+		<!-- Order Filter -->
+		<OrderHistoryFilter
+			onFilterChange={handleFilterChange}
+			onClearFilters={handleClearFilters}
+			filters={$orderFilters}
+			loading={isFiltering}
+		/>
 
 		<!-- Loading State -->
 		{#if $orderLoading && !hasLoaded}
+			<OrderCardSkeleton count={3} />
+		{:else if $orderLoading && isFiltering}
+			<OrderCardSkeleton count={3} />
 			<div class="loading-container">
 				<div class="spinner"></div>
 				<p class="loading-text">Loading orders...</p>
@@ -135,11 +180,19 @@
 						d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
 					/>
 				</svg>
-				<h2 class="empty-title">No orders yet</h2>
-				<p class="empty-description">When you place orders, they will appear here.</p>
-				<button class="btn-primary" onclick={() => goto('/products')}>
-					Start Shopping
-				</button>
+				{#if $orderFilters.status || $orderFilters.dateRange}
+					<h2 class="empty-title">No orders found</h2>
+					<p class="empty-description">
+						No orders match your current filters. Try adjusting your search criteria.
+					</p>
+					<button class="btn-primary" onclick={handleClearFilters}> Clear Filters </button>
+				{:else}
+					<h2 class="empty-title">No orders yet</h2>
+					<p class="empty-description">When you place orders, they will appear here.</p>
+					<button class="btn-primary" onclick={() => goto('/products')}>
+						Start Shopping
+					</button>
+				{/if}
 			</div>
 		{:else}
 			<!-- Orders List -->
