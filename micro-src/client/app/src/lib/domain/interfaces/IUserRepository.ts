@@ -25,4 +25,11 @@ export interface IUserRepository {
 	 * @returns Promise resolving to true if available, false otherwise
 	 */
 	isUsernameAvailable(username: string): Promise<boolean>;
+
+	/**
+	 * Get current user information
+	 * @param token - JWT token
+	 * @returns Promise resolving to user information
+	 */
+	getCurrentUser(token: string): Promise<User>;
 }
