@@ -4,7 +4,7 @@
  */
 
 import { writable, derived } from 'svelte/store';
-import type { Product, PaginatedProducts, ProductFilters } from '$lib/domain/entities/Product';
+import type { Product, ProductFilters } from '$lib/domain/entities/Product';
 import { ProductQueryUseCase } from '../usecases/ProductQueryUseCase';
 import { ProductRepository } from '$lib/infrastructure/repositories/ProductRepository';
 

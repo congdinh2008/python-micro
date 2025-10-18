@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+	import type { Product } from '$lib/domain/entities/Product';
 	import ProductFilter from '$lib/presentation/components/products/ProductFilter.svelte';
 	import ProductGrid from '$lib/presentation/components/products/ProductGrid.svelte';
 	import Pagination from '$lib/presentation/components/ui/Pagination.svelte';
@@ -9,7 +10,7 @@
 	import { productStore, filterStore } from '$lib/application/stores/productStore';
 	import type { ProductFilters } from '$lib/domain/entities/Product';
 
-	let products: any[] = [];
+	let products: Product[] = [];
 	let total = 0;
 	let currentPage = 1;
 	let pageSize = 20;
@@ -122,7 +123,7 @@
 	}
 
 	// Mock function for add to cart (to be implemented)
-	function handleAddToCart(product: any) {
+	function handleAddToCart(product: Product) {
 		console.log('Add to cart:', product);
 		// TODO: Implement cart functionality
 		alert(`Added "${product.name}" to cart!`);

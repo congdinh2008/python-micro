@@ -3,7 +3,7 @@
  * @description Tests for ProductQueryUseCase
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { ProductQueryUseCase } from './ProductQueryUseCase';
 import type { IProductRepository } from '$lib/domain/interfaces/IProductRepository';
 import type { Product } from '$lib/domain/entities/Product';
@@ -41,7 +41,8 @@ const mockProducts: Product[] = [
 
 // Mock repository
 class MockProductRepository implements IProductRepository {
-	async getAll(skip: number, limit: number): Promise<Product[]> {
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	async getAll(_skip: number, _limit: number): Promise<Product[]> {
 		return mockProducts;
 	}
 

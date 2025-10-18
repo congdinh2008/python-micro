@@ -8,7 +8,7 @@
 </script>
 
 {#if variant === 'text'}
-	{#each Array(count) as _, i}
+	{#each Array(count) as _unused}
 		<div class="skeleton-text {className}" data-testid="skeleton-text"></div>
 	{/each}
 {:else if variant === 'circle'}

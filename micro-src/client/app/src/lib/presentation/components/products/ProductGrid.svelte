@@ -17,7 +17,7 @@
 	{#if loading}
 		<!-- Loading skeleton -->
 		<div class="product-grid">
-			{#each Array(8) as _, i}
+			{#each Array(8) as _unused}
 				<SkeletonLoader variant="card" />
 			{/each}
 		</div>

@@ -94,19 +94,21 @@ export class ApiClient {
 			apiError = new ApiError('Network error. Please check your connection.', undefined, 'network');
 		} else if (error.response.status === 400) {
 			// Validation error
-			const detail = (error.response.data as any)?.detail || 'Validation failed';
+			const detail = (error.response.data as { detail?: string })?.detail || 'Validation failed';
 			apiError = new ApiError(detail, 400, 'validation');
 		} else if (error.response.status === 422) {
 			// Unprocessable entity (validation)
-			const errors = (error.response.data as any)?.detail;
-			const message = Array.isArray(errors) ? errors[0]?.msg || 'Validation error' : 'Validation error';
+			const errors = (error.response.data as { detail?: unknown })?.detail;
+			const message = Array.isArray(errors) && errors[0] && typeof errors[0] === 'object' && 'msg' in errors[0] 
+				? (errors[0].msg as string) || 'Validation error' 
+				: 'Validation error';
 			apiError = new ApiError(message, 422, 'validation');
 		} else if (error.response.status >= 500) {
 			// Server error
 			apiError = new ApiError('Server error. Please try again later.', error.response.status, 'server');
 		} else {
 			// Other errors
-			const detail = (error.response.data as any)?.detail || error.message;
+			const detail = (error.response.data as { detail?: string })?.detail || error.message;
 			apiError = new ApiError(detail, error.response.status, 'server');
 		}
 

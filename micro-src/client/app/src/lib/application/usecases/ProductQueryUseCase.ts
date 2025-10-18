@@ -4,7 +4,7 @@
  */
 
 import type { IProductRepository } from '$lib/domain/interfaces/IProductRepository';
-import type { Product, ProductFilters, PaginatedProducts } from '$lib/domain/entities/Product';
+import type { Product, PaginatedProducts } from '$lib/domain/entities/Product';
 import {
 	productFilterSchema,
 	type ProductFilterInput

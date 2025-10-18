@@ -33,6 +33,7 @@ interface CacheConfig {
  * Cache manager for client-side caching with stale-while-revalidate pattern
  */
 export class CacheManager {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	private cache: Map<string, CacheEntry<any>> = new Map();
 	private defaultStaleTime = 5 * 60 * 1000; // 5 minutes
 	private defaultCacheTime = 10 * 60 * 1000; // 10 minutes
@@ -84,7 +85,6 @@ export class CacheManager {
 	 */
 	set<T>(key: string, data: T, config?: CacheConfig): void {
 		const now = Date.now();
-		const staleTime = config?.staleTime ?? this.defaultStaleTime;
 		const cacheTime = config?.cacheTime ?? this.defaultCacheTime;
 
 		this.cache.set(key, {

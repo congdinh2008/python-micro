@@ -3,7 +3,7 @@
  * @description Tests for cache manager
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { CacheManager } from './cacheManager';
 
 describe('CacheManager', () => {
