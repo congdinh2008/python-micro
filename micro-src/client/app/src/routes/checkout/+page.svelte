@@ -13,7 +13,6 @@
 	import CartItemCard from '$lib/presentation/components/cart/CartItemCard.svelte';
 	import Alert from '$lib/presentation/components/ui/Alert.svelte';
 	import { fade } from 'svelte/transition';
-	import type { CartItem } from '$lib/domain/entities/Cart';
 
 	let isProcessing = false;
 	let checkoutError = '';

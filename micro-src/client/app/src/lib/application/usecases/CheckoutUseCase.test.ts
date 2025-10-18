@@ -8,6 +8,7 @@ import { CheckoutUseCase } from './CheckoutUseCase';
 import type { IOrderRepository } from '$lib/domain/interfaces/IOrderRepository';
 import type { CartItem } from '$lib/domain/entities/Cart';
 import type { Order } from '$lib/domain/entities/Order';
+import { OrderStatus } from '$lib/domain/entities/Order';
 import { ApiError } from '$lib/infrastructure/api/apiClient';
 
 describe('CheckoutUseCase', () => {
@@ -41,7 +42,7 @@ describe('CheckoutUseCase', () => {
 		quantity: 2,
 		unit_price: 100,
 		total_price: 200,
-		status: 'pending' as any,
+		status: 'pending' as OrderStatus,
 		created_at: '2025-10-18T00:00:00Z',
 		updated_at: '2025-10-18T00:00:00Z'
 	};
