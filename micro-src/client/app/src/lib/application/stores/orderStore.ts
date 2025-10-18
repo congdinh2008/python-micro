@@ -5,6 +5,8 @@
 
 import { writable, derived, type Readable } from 'svelte/store';
 import type { Order } from '$lib/domain/entities/Order';
+import type { OrderHistoryFilters } from '$lib/domain/dto/OrderHistoryFilters';
+import { DEFAULT_ORDER_FILTERS } from '$lib/domain/dto/OrderHistoryFilters';
 import { OrderRepository } from '$lib/infrastructure/repositories/OrderRepository';
 import { OrderQueryUseCase } from '../usecases/OrderQueryUseCase';
 
@@ -14,6 +16,7 @@ import { OrderQueryUseCase } from '../usecases/OrderQueryUseCase';
 interface OrderStoreState {
 	orders: Order[];
 	currentOrder: Order | null;
+	filters: OrderHistoryFilters;
 	loading: boolean;
 	error: string | null;
 }
@@ -25,6 +28,7 @@ function createOrderStore() {
 	const initialState: OrderStoreState = {
 		orders: [],
 		currentOrder: null,
+		filters: { ...DEFAULT_ORDER_FILTERS },
 		loading: false,
 		error: null
 	};
@@ -39,16 +43,17 @@ function createOrderStore() {
 		subscribe,
 
 		/**
-		 * Fetch all orders
+		 * Fetch all orders with optional filters
 		 */
-		async fetchOrders(skip: number = 0, limit: number = 20): Promise<boolean> {
+		async fetchOrders(filters?: OrderHistoryFilters): Promise<boolean> {
 			update((state) => ({
 				...state,
 				loading: true,
-				error: null
+				error: null,
+				filters: filters || state.filters
 			}));
 
-			const result = await orderQueryUseCase.getAll(skip, limit);
+			const result = await orderQueryUseCase.getAll(filters);
 
 			if (result.success && result.orders) {
 				update((state) => ({
@@ -66,6 +71,35 @@ function createOrderStore() {
 				}));
 				return false;
 			}
+		},
+
+		/**
+		 * Update filters and refetch orders
+		 */
+		async updateFilters(filters: Partial<OrderHistoryFilters>): Promise<boolean> {
+			let currentFilters: OrderHistoryFilters = { ...DEFAULT_ORDER_FILTERS };
+
+			update((state) => {
+				currentFilters = { ...state.filters, ...filters };
+				return {
+					...state,
+					filters: currentFilters
+				};
+			});
+
+			return this.fetchOrders(currentFilters);
+		},
+
+		/**
+		 * Clear filters and refetch orders
+		 */
+		async clearFilters(): Promise<boolean> {
+			update((state) => ({
+				...state,
+				filters: { ...DEFAULT_ORDER_FILTERS }
+			}));
+
+			return this.fetchOrders(DEFAULT_ORDER_FILTERS);
 		},
 
 		/**
@@ -165,3 +199,11 @@ export const orderLoading: Readable<boolean> = derived(orderStore, ($store) => $
  * Derived store for error state
  */
 export const orderError: Readable<string | null> = derived(orderStore, ($store) => $store.error);
+
+/**
+ * Derived store for current filters
+ */
+export const orderFilters: Readable<OrderHistoryFilters> = derived(
+	orderStore,
+	($store) => $store.filters
+);
