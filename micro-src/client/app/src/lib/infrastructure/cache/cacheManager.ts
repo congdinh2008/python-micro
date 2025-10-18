@@ -9,6 +9,7 @@
 interface CacheEntry<T> {
 	data: T;
 	timestamp: number;
+	staleAt: number;
 	expiresAt: number;
 }
 
@@ -72,9 +73,8 @@ export class CacheManager {
 		}
 
 		const now = Date.now();
-		const staleThreshold = entry.timestamp + this.defaultStaleTime;
 
-		return now > staleThreshold && now <= entry.expiresAt;
+		return now > entry.staleAt && now <= entry.expiresAt;
 	}
 
 	/**
@@ -85,11 +85,13 @@ export class CacheManager {
 	 */
 	set<T>(key: string, data: T, config?: CacheConfig): void {
 		const now = Date.now();
+		const staleTime = config?.staleTime ?? this.defaultStaleTime;
 		const cacheTime = config?.cacheTime ?? this.defaultCacheTime;
 
 		this.cache.set(key, {
 			data,
 			timestamp: now,
+			staleAt: now + staleTime,
 			expiresAt: now + cacheTime
 		});
 	}
