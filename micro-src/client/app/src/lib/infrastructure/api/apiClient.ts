@@ -179,3 +179,11 @@ export const userServiceApi = new ApiClient({
 	baseURL: import.meta.env.VITE_USER_SERVICE_URL || 'http://localhost:8001',
 	timeout: 10000
 });
+
+/**
+ * Create API client instance for Product Service
+ */
+export const productServiceApi = new ApiClient({
+	baseURL: import.meta.env.VITE_PRODUCT_SERVICE_URL || 'http://localhost:8002',
+	timeout: 10000
+});

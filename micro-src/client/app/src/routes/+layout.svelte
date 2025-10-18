@@ -36,6 +36,14 @@
 
 			<!-- Navigation -->
 			<nav class="flex items-center gap-4">
+				<!-- Products link -->
+				<a
+					href="/products"
+					class="text-sm font-medium text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md hover:bg-gray-100 transition-colors"
+				>
+					Products
+				</a>
+
 				{#if $isAuthenticated}
 					<!-- Authenticated user menu -->
 					<span class="text-sm text-gray-600">
