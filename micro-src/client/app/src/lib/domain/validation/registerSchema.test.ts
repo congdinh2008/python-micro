@@ -100,7 +100,7 @@ describe('Register Validation Schema', () => {
 		});
 
 		it('should reject password without uppercase letter', () => {
-			const error = validatePassword('noupppercase@123');
+			const error = validatePassword('nouppercase@123');
 			expect(error).toBe('Password must contain at least one uppercase letter');
 		});
 

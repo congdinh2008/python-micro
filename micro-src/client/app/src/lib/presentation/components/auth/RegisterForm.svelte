@@ -198,15 +198,7 @@
 		}
 	}
 
-	/**
-	 * Handle Enter key press
-	 */
-	function handleKeyPress(event: KeyboardEvent) {
-		if (event.key === 'Enter' && !isSubmitting) {
-			// Form submission will be handled by the form's onsubmit
-			// No need to manually call handleSubmit here
-		}
-	}
+
 </script>
 
 <div class="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
@@ -239,7 +231,7 @@
 			{/if}
 
 			<!-- Form Fields -->
-			<form onsubmit={handleSubmit} onkeypress={handleKeyPress} novalidate>
+			<form onsubmit={handleSubmit} novalidate>
 				<!-- Username -->
 				<Input
 					id="username"

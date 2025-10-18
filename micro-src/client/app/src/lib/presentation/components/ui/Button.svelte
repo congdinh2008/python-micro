@@ -12,7 +12,7 @@
 		loading?: boolean;
 		fullWidth?: boolean;
 		onclick?: () => void;
-		children?: import('svelte').Snippet;
+		children: import('svelte').Snippet;
 	}
 
 	let {
