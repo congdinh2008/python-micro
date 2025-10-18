@@ -7,6 +7,8 @@
 	import { onMount } from 'svelte';
 	import { authStore, isAuthenticated, currentUser } from '$lib/application/stores/authStore';
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import CartBadge from '$lib/presentation/components/cart/CartBadge.svelte';
 
 	// Initialize authentication on app load
 	onMount(async () => {
@@ -20,6 +22,11 @@
 		if ($page.url.pathname.startsWith('/orders') || $page.url.pathname.startsWith('/profile')) {
 			window.location.href = '/';
 		}
+	}
+
+	// Handle cart click
+	function handleCartClick() {
+		goto('/cart');
 	}
 </script>
 
@@ -43,6 +50,9 @@
 				>
 					Products
 				</a>
+
+				<!-- Cart Badge -->
+				<CartBadge onclick={handleCartClick} />
 
 				{#if $isAuthenticated}
 					<!-- Authenticated user menu -->
