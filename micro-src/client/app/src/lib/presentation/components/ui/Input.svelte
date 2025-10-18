@@ -14,9 +14,10 @@
 		placeholder?: string;
 		required?: boolean;
 		disabled?: boolean;
-		autocomplete?: string | 'on' | 'off' | 'username' | 'new-password' | 'current-password' | 'email';
-		onInput?: (value: string) => void;
-		onBlur?: () => void;
+		autocomplete?: 'off' | 'on' | 'username' | 'current-password' | 'new-password' | 'email';
+		oninput?: (event: Event) => void;
+		onblur?: () => void;
+		'aria-describedby'?: string;
 	}
 
 	let {
@@ -30,18 +31,19 @@
 		required = false,
 		disabled = false,
 		autocomplete = 'off',
-		onInput,
-		onBlur
+		oninput,
+		onblur,
+		'aria-describedby': ariaDescribedBy
 	}: Props = $props();
 
 	function handleInput(event: Event) {
 		const target = event.target as HTMLInputElement;
 		value = target.value;
-		onInput?.(value);
+		oninput?.(event);
 	}
 
 	function handleBlur() {
-		onBlur?.();
+		onblur?.();
 	}
 </script>
 
@@ -67,7 +69,7 @@
 			{error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-primary-500'}
 			{disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}"
 		aria-invalid={error ? 'true' : 'false'}
-		aria-describedby={error ? `${id}-error` : undefined}
+		aria-describedby={ariaDescribedBy || (error ? `${id}-error` : undefined)}
 	/>
 	{#if error}
 		<p id="{id}-error" class="mt-1 text-sm text-red-600" role="alert">
